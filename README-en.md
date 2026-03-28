@@ -68,6 +68,8 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 After the installer starts, it will show a menu. Please enter the menu number directly in the menu, not at the shell prompt.
 
+After you choose to install, the script will let you select ACME domain certificate, custom certificate, or no-domain / IP self-signed deployment.
+
 ## Installation Guide
 
 - [INSTALLATION.md](INSTALLATION.md)

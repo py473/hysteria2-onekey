@@ -69,6 +69,8 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 安装器启动后，会显示菜单，请直接在菜单里输入数字选项，不要回到 shell 提示符后再输入。
 
+选择安装后，脚本会继续让你在 ACME 域名证书、自有证书、无域名 / IP 自签名部署之间进行选择。
+
 ## 安装说明
 
 - [INSTALLATION.md](INSTALLATION.md)
