@@ -15,6 +15,7 @@
 - [支持环境](#支持环境)
 - [功能](#功能)
 - [在线安装](#在线安装)
+- [安装说明](#安装说明)
 - [本地运行](#本地运行)
 - [安装完成后](#安装完成后)
 - [文件说明](#文件说明)
@@ -64,6 +65,10 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 安装器启动后，会显示菜单，请直接在菜单里输入数字选项，不要回到 shell 提示符后再输入。
 
+## 安装说明
+
+- [INSTALLATION.md](INSTALLATION.md)
+
 ## 本地运行
 
 ```bash
@@ -106,6 +111,7 @@ chmod +x hy2-onekey.sh
 - `hy2-onekey.sh`：主安装脚本
 - `README.md`：项目说明
 - `README-en.md`：英文说明
+- `INSTALLATION.md`：新手安装说明
 
 ## 更新日志
 

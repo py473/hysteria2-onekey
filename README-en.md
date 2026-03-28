@@ -15,6 +15,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Supported Systems](#supported-systems)
 - [Features](#features)
 - [Online Install](#online-install)
+- [Installation Guide](#installation-guide)
 - [Local Run](#local-run)
 - [After Installation](#after-installation)
 - [Files](#files)
@@ -63,6 +64,10 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 After the installer starts, it will show a menu. Please enter the menu number directly in the menu, not at the shell prompt.
 
+## Installation Guide
+
+- [INSTALLATION.md](INSTALLATION.md)
+
 ## Local Run
 
 ```bash
@@ -105,6 +110,7 @@ The script usually generates the following files on the server:
 - `hy2-onekey.sh`: main installer script
 - `README.md`: Chinese project overview
 - `README-en.md`: English project overview
+- `INSTALLATION.md`: beginner installation guide
 
 ## Changelog
 
