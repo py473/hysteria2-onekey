@@ -59,6 +59,8 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 - 邮箱：填写你的 ACME 邮箱
 - 伪装地址：可以直接输入 `www.bing.com`
 
+如果你没有域名，脚本会自动改用 VPS IP 和自签名证书，也可以手动在部署参数里使用 `--tls ip`。
+
 ### 5. 安装完成后
 
 安装完成后，重点查看：
@@ -157,6 +159,8 @@ The script will then ask for:
 - Domain: your server domain
 - Email: your ACME email
 - Masquerade URL: you can enter `www.bing.com`
+
+If you do not have a domain, the script will automatically use your VPS IP and a self-signed certificate. You can also set `--tls ip` manually.
 
 ### 5. After installation
 

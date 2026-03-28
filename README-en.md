@@ -45,6 +45,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - Interactive server configuration generation
 - ACME automatic certificate support
 - Custom certificate support
+- Supports no-domain / IP self-signed deployment
 - Custom masquerade URL support
 - v2rayN-compatible node output
 - QR code output for easy import

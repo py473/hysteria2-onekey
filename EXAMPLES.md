@@ -20,13 +20,19 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
 ```
 
-### 4. 仅查看帮助
+### 4. 无域名 / IP 模式快速部署
+
+```bash
+./hy2-onekey.sh --deploy --tls ip --yes
+```
+
+### 5. 仅查看帮助
 
 ```bash
 ./hy2-onekey.sh --help
 ```
 
-### 5. v2rayN 导入
+### 6. v2rayN 导入
 
 安装完成后，查看：
 
@@ -36,7 +42,7 @@ cat /root/hy2-v2rayn.txt
 
 支持的客户端和官方下载地址请看 [CLIENTS.md](CLIENTS.md)。
 
-### 6. 安装基础工具
+### 7. 安装基础工具
 
 #### Debian / Ubuntu
 
@@ -51,7 +57,7 @@ apt install -y curl wget ufw
 dnf install -y curl wget ufw
 ```
 
-### 7. 检查监听与服务状态
+### 8. 检查监听与服务状态
 
 ```bash
 ss -lunp | grep 443
@@ -59,7 +65,7 @@ systemctl status hysteria-server.service --no-pager
 journalctl -u hysteria-server.service -e --no-pager
 ```
 
-### 8. 使用 UFW 放行端口
+### 9. 使用 UFW 放行端口
 
 ```bash
 ufw allow 443/udp
@@ -67,7 +73,7 @@ ufw allow 443/tcp
 ufw status
 ```
 
-### 9. 使用 iptables 放行端口
+### 10. 使用 iptables 放行端口
 
 ```bash
 iptables -I INPUT -p udp --dport 443 -j ACCEPT
@@ -94,13 +100,19 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
 ```
 
-### 4. Show help
+### 4. Quick deploy without a domain / IP mode
+
+```bash
+./hy2-onekey.sh --deploy --tls ip --yes
+```
+
+### 5. Show help
 
 ```bash
 ./hy2-onekey.sh --help
 ```
 
-### 5. v2rayN import
+### 6. v2rayN import
 
 After installation, check:
 
@@ -110,7 +122,7 @@ cat /root/hy2-v2rayn.txt
 
 For supported clients and official download links, see [CLIENTS.md](CLIENTS.md).
 
-### 6. Install basic tools
+### 7. Install basic tools
 
 #### Debian / Ubuntu
 
@@ -125,7 +137,7 @@ apt install -y curl wget ufw
 dnf install -y curl wget ufw
 ```
 
-### 7. Check listening and service status
+### 8. Check listening and service status
 
 ```bash
 ss -lunp | grep 443
@@ -133,7 +145,7 @@ systemctl status hysteria-server.service --no-pager
 journalctl -u hysteria-server.service -e --no-pager
 ```
 
-### 8. Allow ports with UFW
+### 9. Allow ports with UFW
 
 ```bash
 ufw allow 443/udp
@@ -141,7 +153,7 @@ ufw allow 443/tcp
 ufw status
 ```
 
-### 9. Allow ports with iptables
+### 10. Allow ports with iptables
 
 ```bash
 iptables -I INPUT -p udp --dport 443 -j ACCEPT

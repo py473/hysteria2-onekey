@@ -32,6 +32,10 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 
 脚本会自动补全 `https://`。
 
+### 5. 没有域名可以安装吗？
+
+可以。脚本支持无域名 / IP 模式，会自动使用 VPS IP 和自签名证书；也可以手动使用 `--tls ip`。
+
 ## English
 
 ### 1. Which systems are supported?
@@ -63,3 +67,7 @@ If you want to see supported clients and official download links, check [CLIENTS
 You can enter a plain domain such as `www.bing.com`.
 
 The script will automatically prepend `https://`.
+
+### 5. Can I install it without a domain?
+
+Yes. The script supports no-domain / IP mode, automatically using your VPS IP and a self-signed certificate. You can also set `--tls ip` manually.
