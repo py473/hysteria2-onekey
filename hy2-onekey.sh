@@ -106,7 +106,7 @@ detect_public_ip() {
   local detected_ip=""
 
   if command -v ip >/dev/null 2>&1; then
-    detected_ip="$(ip route get 1.1.1.1 2>/dev/null | awk 'match($0, /src ([0-9a-fA-F:.]+)/, m) { print m[1]; exit }')"
+    detected_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) { if ($i == "src") { print $(i + 1); exit } } }')"
   fi
 
   if [[ -z "${detected_ip}" ]] && command -v hostname >/dev/null 2>&1; then
