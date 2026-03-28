@@ -21,6 +21,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Changelog](#changelog)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
+- [Security](#security)
 - [Notes](#notes)
 - [License](#license)
 
@@ -117,6 +118,12 @@ The script usually generates the following files on the server:
 - Troubleshooting guide: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - Open a new issue: <https://github.com/py473/hysteria2-onekey/issues>
 - Contribute: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## Security
+
+If you discover a security issue related to this project, please report it via GitHub Security Advisories or contact the maintainer privately. Please do not publish sensitive details publicly.
+
+- Security policy: [SECURITY.md](SECURITY.md)
 
 ## Notes
 

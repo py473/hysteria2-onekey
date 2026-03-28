@@ -21,6 +21,7 @@
 - [更新日志](#更新日志)
 - [常见问题](#常见问题)
 - [支持](#支持)
+- [安全](#安全)
 - [注意事项](#注意事项)
 - [免责声明](#免责声明)
 - [许可证](#许可证)
@@ -118,6 +119,12 @@ chmod +x hy2-onekey.sh
 - 排查常见问题：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - 提交新问题：<https://github.com/py473/hysteria2-onekey/issues>
 - 参与贡献：[CONTRIBUTING.md](CONTRIBUTING.md)
+
+## 安全
+
+如果你发现与本项目相关的安全问题，请优先通过 GitHub Security Advisories 或私下联系维护者，不要直接公开敏感细节。
+
+- 安全说明：[SECURITY.md](SECURITY.md)
 
 ## 注意事项
 
