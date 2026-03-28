@@ -20,6 +20,7 @@
 - [文件说明](#文件说明)
 - [更新日志](#更新日志)
 - [常见问题](#常见问题)
+- [FAQ](#faq)
 - [支持](#支持)
 - [安全](#安全)
 - [行为准则](#行为准则)
@@ -114,10 +115,15 @@ chmod +x hy2-onekey.sh
 
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
+## FAQ
+
+- [FAQ.md](FAQ.md)
+
 ## 支持
 
 - 查看最新版本：<https://github.com/py473/hysteria2-onekey/releases>
 - 排查常见问题：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- 查看 FAQ：[FAQ.md](FAQ.md)
 - 提交新问题：<https://github.com/py473/hysteria2-onekey/issues>
 - 参与贡献：[CONTRIBUTING.md](CONTRIBUTING.md)
 
