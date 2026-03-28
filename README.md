@@ -119,6 +119,7 @@ chmod +x hy2-onekey.sh
 - `README-en.md`：英文说明
 - `INSTALLATION.md`：新手安装说明
 - `EXAMPLES.md`：示例命令
+- `DOCS.md`：文档总览
 
 ## 更新日志
 
