@@ -2,9 +2,24 @@
 
 [中文](README.md) | English
 
+[![Release](https://img.shields.io/github/v/release/py473/hysteria2-onekey)](https://github.com/py473/hysteria2-onekey/releases)
+[![License](https://img.shields.io/github/license/py473/hysteria2-onekey)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Unix-blue)](README-en.md)
+
 This is a Hysteria 2 one-key installer for **Linux / Unix server systems**, designed for common `systemd` server environments.
 
 Repository: <https://github.com/py473/hysteria2-onekey>
+
+## Table of Contents
+
+- [Supported Systems](#supported-systems)
+- [Features](#features)
+- [Online Install](#online-install)
+- [Local Run](#local-run)
+- [After Installation](#after-installation)
+- [Files](#files)
+- [Notes](#notes)
+- [License](#license)
 
 ## Supported Systems
 

@@ -2,9 +2,25 @@
 
 [English](README-en.md) | 中文
 
+[![Release](https://img.shields.io/github/v/release/py473/hysteria2-onekey)](https://github.com/py473/hysteria2-onekey/releases)
+[![License](https://img.shields.io/github/license/py473/hysteria2-onekey)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Unix-blue)](README.md)
+
 这是一个面向 **Linux / Unix 服务器系统** 的 Hysteria 2 一键安装脚本，适用于常见的 `systemd` 服务器环境。
 
 仓库地址：<https://github.com/py473/hysteria2-onekey>
+
+## 目录
+
+- [支持环境](#支持环境)
+- [功能](#功能)
+- [在线安装](#在线安装)
+- [本地运行](#本地运行)
+- [安装完成后](#安装完成后)
+- [文件说明](#文件说明)
+- [注意事项](#注意事项)
+- [免责声明](#免责声明)
+- [许可证](#许可证)
 
 ## 支持环境
 
