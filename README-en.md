@@ -24,6 +24,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
 - [Support](#support)
+- [Clients](#clients)
 - [Security](#security)
 - [Code of Conduct](#code-of-conduct)
 - [Common Commands](#common-commands)
@@ -139,6 +140,21 @@ The script usually generates the following files on the server:
 - FAQ: [FAQ.md](FAQ.md)
 - Open a new issue: <https://github.com/py473/hysteria2-onekey/issues>
 - Contribute: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## Clients
+
+The following clients can be used to import or use Hysteria 2 configurations. Please refer to each project's official page for downloads:
+
+- v2rayN: <https://github.com/2dust/v2rayN>
+- Clash.Meta: <https://github.com/MetaCubeX/Clash.Meta>
+- sing-box: <https://github.com/SagerNet/sing-box>
+- Hiddify Next: <https://github.com/hiddify/hiddify-next>
+- NekoBox for Android: <https://github.com/MatsuriDayo/NekoBoxForAndroid>
+- V2Box: <https://apps.apple.com/app/v2box-v2ray-client/id6446814690>
+
+For more Hysteria 2-compatible third-party apps, see the official list:
+
+- <https://v2.hysteria.network/docs/getting-started/3rd-party-apps/>
 
 ## Security
 

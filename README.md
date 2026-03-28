@@ -24,6 +24,7 @@
 - [常见问题](#常见问题)
 - [FAQ](#faq)
 - [支持](#支持)
+- [客户端](#客户端)
 - [安全](#安全)
 - [行为准则](#行为准则)
 - [常用命令](#常用命令)
@@ -140,6 +141,21 @@ chmod +x hy2-onekey.sh
 - 查看 FAQ：[FAQ.md](FAQ.md)
 - 提交新问题：<https://github.com/py473/hysteria2-onekey/issues>
 - 参与贡献：[CONTRIBUTING.md](CONTRIBUTING.md)
+
+## 客户端
+
+以下客户端可用于导入或使用 Hysteria 2 配置。下载地址请以各项目官方页面为准：
+
+- v2rayN：<https://github.com/2dust/v2rayN>
+- Clash.Meta：<https://github.com/MetaCubeX/Clash.Meta>
+- sing-box：<https://github.com/SagerNet/sing-box>
+- Hiddify Next：<https://github.com/hiddify/hiddify-next>
+- NekoBox for Android：<https://github.com/MatsuriDayo/NekoBoxForAndroid>
+- V2Box：<https://apps.apple.com/app/v2box-v2ray-client/id6446814690>
+
+更多支持 Hysteria 2 的第三方应用，请参考官方列表：
+
+- <https://v2.hysteria.network/zh/docs/getting-started/3rd-party-apps/>
 
 ## 安全
 
