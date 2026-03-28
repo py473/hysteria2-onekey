@@ -18,6 +18,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Local Run](#local-run)
 - [After Installation](#after-installation)
 - [Files](#files)
+- [Changelog](#changelog)
 - [Notes](#notes)
 - [License](#license)
 
@@ -85,6 +86,10 @@ The script usually generates the following files on the server:
 - `hy2-onekey.sh`: main installer script
 - `README.md`: Chinese project overview
 - `README-en.md`: English project overview
+
+## Changelog
+
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## Notes
 
