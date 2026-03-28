@@ -21,6 +21,20 @@
 
 ## 使用方式
 
+### 一键在线安装
+
+```bash
+wget -qO- https://raw.githubusercontent.com/py473/hysteria2-onekey/main/install.sh | bash
+```
+
+如果服务器没有 `wget`，也可以用 `curl`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/py473/hysteria2-onekey/main/install.sh | bash
+```
+
+### 本地运行
+
 ```bash
 cd /root/hysteria
 chmod +x hy2-onekey.sh
