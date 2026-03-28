@@ -298,6 +298,9 @@ prompt_tls_mode() {
   echo "  1) ACME 域名证书（有域名，推荐）"
   echo "  2) 自有证书（有域名或已有证书）"
   echo "  3) 无域名 / IP 自签名部署"
+  echo "    - 1：适合已有域名且已解析到 VPS 的用户"
+  echo "    - 2：适合已有证书文件的用户"
+  echo "    - 3：适合没有域名、直接使用 VPS IP 的用户"
   read -r -p "请输入选项 [1-3，默认 1]: " choice
   choice="${choice:-1}"
 
@@ -440,18 +443,6 @@ deploy_with_config() {
     success "已自动生成认证密码。"
   fi
 
-  if [[ -n "${HY2_MASQUERADE_URL:-}" ]]; then
-    set_masquerade_block "${HY2_MASQUERADE_URL}"
-  elif [[ "${HY2_NO_MASQUERADE:-false}" == "true" || "${HY2_YES:-false}" == "true" ]]; then
-    set_masquerade_block ""
-  else
-    build_masquerade_config
-  fi
-
-  if [[ "${HY2_INSECURE:-false}" == "true" ]]; then
-    TLS_INSECURE="true"
-  fi
-
   if [[ -z "${tls_choice}" ]]; then
     if [[ "${HY2_YES:-false}" == "true" ]]; then
       if [[ -n "${HY2_CERT:-}" || -n "${HY2_KEY:-}" ]]; then
@@ -472,6 +463,18 @@ deploy_with_config() {
     tls_choice="2"
   elif [[ "${tls_choice}" == "ip" || "${tls_choice}" == "self-signed" ]]; then
     tls_choice="3"
+  fi
+
+  if [[ -n "${HY2_MASQUERADE_URL:-}" ]]; then
+    set_masquerade_block "${HY2_MASQUERADE_URL}"
+  elif [[ "${HY2_NO_MASQUERADE:-false}" == "true" || "${HY2_YES:-false}" == "true" ]]; then
+    set_masquerade_block ""
+  else
+    build_masquerade_config
+  fi
+
+  if [[ "${HY2_INSECURE:-false}" == "true" ]]; then
+    TLS_INSECURE="true"
   fi
 
   if [[ "${tls_choice}" == "1" ]]; then
