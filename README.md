@@ -1,5 +1,7 @@
 # Hysteria 2 One-Key Installer
 
+[English](README-en.md) | 中文
+
 这是一个面向 **Linux / Unix 服务器系统** 的 Hysteria 2 一键安装脚本，适用于常见的 `systemd` 服务器环境。
 
 仓库地址：<https://github.com/py473/hysteria2-onekey>
