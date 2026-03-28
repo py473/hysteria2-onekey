@@ -102,6 +102,7 @@ chmod +x hy2-onekey.sh
 - 查看最新版本：<https://github.com/py473/hysteria2-onekey/releases>
 - 排查常见问题：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - 提交新问题：<https://github.com/py473/hysteria2-onekey/issues>
+- 参与贡献：[CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 注意事项
 

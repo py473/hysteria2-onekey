@@ -102,6 +102,7 @@ The script usually generates the following files on the server:
 - Latest releases: <https://github.com/py473/hysteria2-onekey/releases>
 - Troubleshooting guide: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - Open a new issue: <https://github.com/py473/hysteria2-onekey/issues>
+- Contribute: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Notes
 
