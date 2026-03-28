@@ -16,6 +16,7 @@ Thank you for your interest in improving this project.
 2. 如果是新问题，请尽量提供日志、系统版本和复现步骤
 3. 如果要提交 PR，请尽量让改动保持单一、清晰
 4. 提交前确认 README、安装脚本和文档内容一致
+5. 提交 Issue 或 PR 时尽量使用仓库提供的模板
 
 在提交问题前，建议先查看：
 
@@ -37,6 +38,7 @@ If you would like to help improve this project, you can:
 2. If it is a new problem, include logs, system version, and reproduction steps
 3. Keep pull requests focused and easy to review
 4. Make sure README, installer scripts, and docs stay in sync
+5. Please use the repository templates when opening an issue or pull request
 
 Before opening an issue, please review:
 
@@ -50,3 +52,4 @@ Before opening an issue, please review:
 - For server-side issues, please include logs when possible.
 - For installation issues, include your Linux distribution and version.
 - If you update installation behavior, also update the README and troubleshooting guide.
+- Issue and PR templates are stored under `.github/`.
