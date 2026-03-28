@@ -1,8 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_RAW_URL="https://raw.githubusercontent.com/py473/hysteria2-onekey/main/hy2-onekey.sh"
+REPO_URL="https://github.com/py473/hysteria2-onekey"
+REPO_RAW_URL="${REPO_URL}/raw/main/hy2-onekey.sh"
 TMP_SCRIPT="/tmp/hy2-onekey.sh"
+PROJECT_NAME="Hysteria 2 One-Key Installer"
+PROJECT_VERSION="1.0.0"
+
+cleanup() {
+  rm -f "${TMP_SCRIPT}"
+}
+
+require_linux() {
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    echo "此安装脚本仅支持 Linux / Unix 服务器系统，不支持 Windows。" >&2
+    exit 1
+  fi
+}
+
+print_banner() {
+  echo "========================================"
+  echo "${PROJECT_NAME}"
+  echo "Version: ${PROJECT_VERSION}"
+  echo "Repo: ${REPO_URL}"
+  echo "========================================"
+}
 
 download_script() {
   if command -v curl >/dev/null 2>&1; then
@@ -16,8 +38,12 @@ download_script() {
 }
 
 main() {
+  trap cleanup EXIT
+  require_linux
+  print_banner
   download_script
   chmod +x "${TMP_SCRIPT}"
+  echo "正在下载并启动主脚本..."
   bash "${TMP_SCRIPT}" "$@"
 }
 

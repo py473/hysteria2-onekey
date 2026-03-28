@@ -1,6 +1,10 @@
-# Hysteria 2 一键安装脚本
+# Hysteria 2 One-Key Installer
 
-这是一个面向 **Linux / Unix 服务器系统** 的 Hysteria 2 一键部署脚本，适用于常见的 `systemd` 服务器环境，例如：
+这是一个面向 **Linux / Unix 服务器系统** 的 Hysteria 2 一键安装脚本，适用于常见的 `systemd` 服务器环境。
+
+仓库地址：<https://github.com/py473/hysteria2-onekey>
+
+## 支持环境
 
 - Debian 12 / Debian 11
 - Ubuntu 22.04 / 24.04
@@ -18,22 +22,23 @@
 - 自动生成 v2rayN 可导入的 Hysteria2 节点信息
 - 输出二维码，方便扫码导入
 - 支持参数模式部署
+- 提供在线一键安装入口
 
-## 使用方式
+## 在线安装
 
-### 一键在线安装
-
-```bash
-wget -qO- https://raw.githubusercontent.com/py473/hysteria2-onekey/main/install.sh | bash
-```
-
-如果服务器没有 `wget`，也可以用 `curl`：
+推荐直接使用下面这一条：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/py473/hysteria2-onekey/main/install.sh | bash
+wget -qO- https://github.com/py473/hysteria2-onekey/raw/main/install.sh | bash
 ```
 
-### 本地运行
+如果服务器没有 `wget`，也可以使用 `curl`：
+
+```bash
+curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh | bash
+```
+
+## 本地运行
 
 ```bash
 cd /root/hysteria
@@ -41,23 +46,37 @@ chmod +x hy2-onekey.sh
 ./hy2-onekey.sh
 ```
 
-如果想直接参数部署，可以先查看帮助：
+查看帮助：
 
 ```bash
 ./hy2-onekey.sh --help
 ```
 
-## 说明
+## 安装完成后
+
+脚本执行完成后，通常会在服务器上生成：
+
+- `/etc/hysteria/config.yaml`：服务端配置
+- `/root/hy2-v2rayn.txt`：v2rayN 导入信息
+- `/root/hy2-client.yaml`：客户端示例配置
+
+## 文件说明
+
+- `install.sh`：在线安装入口
+- `hy2-onekey.sh`：主安装脚本
+- `README.md`：项目说明
+
+## 注意事项
 
 - 本脚本仅面向 Linux / Unix 服务器，不支持 Windows。
 - Hysteria 2 服务端通常需要放行 `UDP 443`。
 - 如果使用 ACME 证书，请确保域名已解析到 VPS。
-
-## 文件说明
-
-- `hy2-onekey.sh`：主安装脚本
-- `README.md`：项目说明
+- 伪装地址支持直接输入域名，脚本会自动补全 `https://`。
 
 ## 免责声明
 
 请仅在你有权限管理的服务器上使用本脚本，并遵守当地法律法规及服务提供商政策。
+
+## 许可证
+
+本项目采用 MIT License，详见 [LICENSE](LICENSE)。
