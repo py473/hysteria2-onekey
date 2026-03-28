@@ -83,11 +83,26 @@ chmod +x hy2-onekey.sh
 - `/root/hy2-v2rayn.txt`：v2rayN 导入信息
 - `/root/hy2-client.yaml`：客户端示例配置
 
+## 快速部署示例
+
+### ACME 自动证书
+
+```bash
+./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --yes
+```
+
+### 自有证书
+
+```bash
+./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
+```
+
 ## 文件说明
 
 - `install.sh`：在线安装入口
 - `hy2-onekey.sh`：主安装脚本
 - `README.md`：项目说明
+- `README-en.md`：英文说明
 
 ## 更新日志
 
