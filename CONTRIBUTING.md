@@ -23,6 +23,7 @@ Thank you for your interest in improving this project.
 - [README.md](README.md)
 - [README-en.md](README-en.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## English
 
@@ -45,6 +46,7 @@ Before opening an issue, please review:
 - [README.md](README.md)
 - [README-en.md](README-en.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## Notes
 
@@ -53,3 +55,4 @@ Before opening an issue, please review:
 - For installation issues, include your Linux distribution and version.
 - If you update installation behavior, also update the README and troubleshooting guide.
 - Issue and PR templates are stored under `.github/`.
+- Community behavior guidelines are described in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

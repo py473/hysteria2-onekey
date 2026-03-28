@@ -22,6 +22,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
 - [Security](#security)
+- [Code of Conduct](#code-of-conduct)
 - [Notes](#notes)
 - [License](#license)
 
@@ -124,6 +125,10 @@ The script usually generates the following files on the server:
 If you discover a security issue related to this project, please report it via GitHub Security Advisories or contact the maintainer privately. Please do not publish sensitive details publicly.
 
 - Security policy: [SECURITY.md](SECURITY.md)
+
+## Code of Conduct
+
+- Community guidelines: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## Notes
 
