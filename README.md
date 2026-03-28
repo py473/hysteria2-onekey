@@ -21,6 +21,7 @@
 - [更新日志](#更新日志)
 - [常见问题](#常见问题)
 - [反馈问题](#反馈问题)
+- [支持](#支持)
 - [注意事项](#注意事项)
 - [免责声明](#免责声明)
 - [许可证](#许可证)
@@ -102,6 +103,12 @@ chmod +x hy2-onekey.sh
 如果你遇到新的问题，欢迎到 GitHub Issues 反馈：
 
 - <https://github.com/py473/hysteria2-onekey/issues>
+
+## 支持
+
+- 查看最新版本：<https://github.com/py473/hysteria2-onekey/releases>
+- 排查常见问题：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- 提交新问题：<https://github.com/py473/hysteria2-onekey/issues>
 
 ## 注意事项
 

@@ -21,6 +21,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Changelog](#changelog)
 - [Troubleshooting](#troubleshooting)
 - [Issues](#issues)
+- [Support](#support)
 - [Notes](#notes)
 - [License](#license)
 
@@ -102,6 +103,12 @@ The script usually generates the following files on the server:
 If you run into a new problem, please report it here:
 
 - <https://github.com/py473/hysteria2-onekey/issues>
+
+## Support
+
+- Latest releases: <https://github.com/py473/hysteria2-onekey/releases>
+- Troubleshooting guide: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- Open a new issue: <https://github.com/py473/hysteria2-onekey/issues>
 
 ## Notes
 
