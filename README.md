@@ -16,6 +16,7 @@
 - [功能](#功能)
 - [在线安装](#在线安装)
 - [安装说明](#安装说明)
+- [示例命令](#示例命令)
 - [本地运行](#本地运行)
 - [安装完成后](#安装完成后)
 - [文件说明](#文件说明)
@@ -69,6 +70,10 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 - [INSTALLATION.md](INSTALLATION.md)
 
+## 示例命令
+
+- [EXAMPLES.md](EXAMPLES.md)
+
 ## 本地运行
 
 ```bash
@@ -112,6 +117,7 @@ chmod +x hy2-onekey.sh
 - `README.md`：项目说明
 - `README-en.md`：英文说明
 - `INSTALLATION.md`：新手安装说明
+- `EXAMPLES.md`：示例命令
 
 ## 更新日志
 

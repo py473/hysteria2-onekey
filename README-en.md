@@ -16,6 +16,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Features](#features)
 - [Online Install](#online-install)
 - [Installation Guide](#installation-guide)
+- [Examples](#examples)
 - [Local Run](#local-run)
 - [After Installation](#after-installation)
 - [Files](#files)
@@ -68,6 +69,10 @@ After the installer starts, it will show a menu. Please enter the menu number di
 
 - [INSTALLATION.md](INSTALLATION.md)
 
+## Examples
+
+- [EXAMPLES.md](EXAMPLES.md)
+
 ## Local Run
 
 ```bash
@@ -111,6 +116,7 @@ The script usually generates the following files on the server:
 - `README.md`: Chinese project overview
 - `README-en.md`: English project overview
 - `INSTALLATION.md`: beginner installation guide
+- `EXAMPLES.md`: example commands
 
 ## Changelog
 
