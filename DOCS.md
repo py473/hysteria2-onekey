@@ -11,6 +11,7 @@
 - [FAQ.md](FAQ.md)：常见问答
 - [CLIENTS.md](CLIENTS.md)：支持的客户端和下载地址
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)：故障排查
+- [RELEASE.md](RELEASE.md)：发布说明
 - [CHANGELOG.md](CHANGELOG.md)：更新日志
 - [CONTRIBUTING.md](CONTRIBUTING.md)：参与贡献
 - [SECURITY.md](SECURITY.md)：安全说明
@@ -27,6 +28,7 @@ The documentation structure of this repository is:
 - [FAQ.md](FAQ.md): frequently asked questions
 - [CLIENTS.md](CLIENTS.md): supported clients and download links
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): troubleshooting guide
+- [RELEASE.md](RELEASE.md): release notes
 - [CHANGELOG.md](CHANGELOG.md): changelog
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributing guide
 - [SECURITY.md](SECURITY.md): security policy

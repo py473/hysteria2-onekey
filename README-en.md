@@ -119,6 +119,7 @@ The script usually generates the following files on the server:
 - `README-en.md`: English project overview
 - `INSTALLATION.md`: beginner installation guide
 - `EXAMPLES.md`: example commands
+- `RELEASE.md`: release notes
 - `DOCS.md`: documentation overview
 
 ## Changelog
