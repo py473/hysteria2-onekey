@@ -99,3 +99,11 @@ chmod 750 /etc/hysteria
 chmod 640 /etc/hysteria/config.yaml
 systemctl restart hysteria-server.service
 ```
+
+If the above steps do not solve your problem, please open a GitHub issue:
+
+- <https://github.com/py473/hysteria2-onekey/issues>
+
+If the above steps do not solve your problem, please open a GitHub issue:
+
+- <https://github.com/py473/hysteria2-onekey/issues>
