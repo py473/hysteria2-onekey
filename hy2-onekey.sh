@@ -291,6 +291,27 @@ prompt_tls_insecure() {
   fi
 }
 
+prompt_tls_mode() {
+  local choice
+  echo
+  echo "请选择 TLS / 部署模式："
+  echo "  1) ACME 域名证书（有域名，推荐）"
+  echo "  2) 自有证书（有域名或已有证书）"
+  echo "  3) 无域名 / IP 自签名部署"
+  read -r -p "请输入选项 [1-3，默认 1]: " choice
+  choice="${choice:-1}"
+
+  case "${choice}" in
+    1|2|3)
+      echo "${choice}"
+      ;;
+    *)
+      warn "无效选项，已默认选择 ACME 域名证书。"
+      echo "1"
+      ;;
+  esac
+}
+
 write_config_acme() {
   local domain="$1"
   local email="$2"
@@ -432,12 +453,16 @@ deploy_with_config() {
   fi
 
   if [[ -z "${tls_choice}" ]]; then
-    if [[ -n "${HY2_CERT:-}" || -n "${HY2_KEY:-}" ]]; then
-      tls_choice="2"
-    elif [[ -n "${HY2_DOMAIN:-}" ]]; then
-      tls_choice="1"
+    if [[ "${HY2_YES:-false}" == "true" ]]; then
+      if [[ -n "${HY2_CERT:-}" || -n "${HY2_KEY:-}" ]]; then
+        tls_choice="2"
+      elif [[ -n "${HY2_DOMAIN:-}" ]]; then
+        tls_choice="1"
+      else
+        tls_choice="3"
+      fi
     else
-      tls_choice="3"
+      tls_choice="$(prompt_tls_mode)"
     fi
   fi
 

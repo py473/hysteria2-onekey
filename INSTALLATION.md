@@ -54,7 +54,7 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 脚本会继续询问：
 
-- TLS 类型：ACME 或自有证书
+- TLS 类型：ACME、自有证书或无域名 / IP 模式
 - 域名：填写你的域名
 - 邮箱：填写你的 ACME 邮箱
 - 伪装地址：可以直接输入 `www.bing.com`
