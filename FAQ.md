@@ -24,6 +24,8 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 
 请先查看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
+如果你想查看支持哪些客户端和官方下载地址，请看 [CLIENTS.md](CLIENTS.md)。
+
 ### 4. 伪装地址要怎么填？
 
 可以直接输入域名，例如 `www.bing.com`。
@@ -53,6 +55,8 @@ Common reasons include:
 - Certificate or SNI mismatch
 
 Please check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) first.
+
+If you want to see supported clients and official download links, check [CLIENTS.md](CLIENTS.md).
 
 ### 4. How should I enter the masquerade URL?
 

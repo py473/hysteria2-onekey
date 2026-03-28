@@ -9,6 +9,7 @@
 - [INSTALLATION.md](INSTALLATION.md)：新手安装说明
 - [EXAMPLES.md](EXAMPLES.md)：常用示例命令
 - [FAQ.md](FAQ.md)：常见问答
+- [CLIENTS.md](CLIENTS.md)：支持的客户端和下载地址
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)：故障排查
 - [CHANGELOG.md](CHANGELOG.md)：更新日志
 - [CONTRIBUTING.md](CONTRIBUTING.md)：参与贡献
@@ -24,6 +25,7 @@ The documentation structure of this repository is:
 - [INSTALLATION.md](INSTALLATION.md): beginner installation guide
 - [EXAMPLES.md](EXAMPLES.md): common example commands
 - [FAQ.md](FAQ.md): frequently asked questions
+- [CLIENTS.md](CLIENTS.md): supported clients and download links
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): troubleshooting guide
 - [CHANGELOG.md](CHANGELOG.md): changelog
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributing guide
