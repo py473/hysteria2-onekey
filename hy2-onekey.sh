@@ -93,6 +93,45 @@ detect_public_ip() {
   printf '%s' "${detected_ip}"
 }
 
+resolve_domain_ips() {
+  local domain="$1"
+  local ips=""
+
+  if command -v getent >/dev/null 2>&1; then
+    ips="$(getent ahostsv4 "${domain}" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true)"
+    if [[ -z "${ips}" ]]; then
+      ips="$(getent ahostsv6 "${domain}" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true)"
+    fi
+  fi
+
+  printf '%s' "${ips}"
+}
+
+check_domain_points_to_vps() {
+  local domain="$1"
+  local public_ip
+  local domain_ips
+
+  public_ip="$(detect_public_ip)"
+  domain_ips="$(resolve_domain_ips "${domain}")"
+
+  if [[ -z "${domain_ips}" ]]; then
+    warn "未能解析到域名 ${domain} 的 IP，ACME 可能会失败。请确认 DNS 已生效。"
+    return 1
+  fi
+
+  for resolved_ip in ${domain_ips}; do
+    if [[ "${resolved_ip}" == "${public_ip}" ]]; then
+      return 0
+    fi
+  done
+
+  warn "域名 ${domain} 解析到的 IP 为: ${domain_ips}"
+  warn "当前 VPS 公网 IP 为: ${public_ip}"
+  warn "如果这不是同一个 IP，ACME 可能会失败；你也可以改用 VPS IP 模式。"
+  return 1
+}
+
 generate_self_signed_cert() {
   local host="$1"
   local cert_path="/etc/hysteria/selfsigned.crt"
@@ -380,7 +419,7 @@ restart_service() {
   if systemctl is-active --quiet "${SERVICE_NAME}"; then
     success "服务已启动。"
   else
-    error "服务启动失败，请执行 journalctl --no-pager -e -u ${SERVICE_NAME} 查看日志。"
+    error "服务启动失败。请先执行 systemctl status ${SERVICE_NAME} --no-pager，再执行 journalctl --no-pager -e -u ${SERVICE_NAME} 查看日志。"
     exit 1
   fi
 }
@@ -478,6 +517,9 @@ deploy_with_config() {
       sni="${domain}"
       TLS_INSECURE="true"
     else
+      if ! check_domain_points_to_vps "${domain}"; then
+        warn "建议先修正 DNS 再继续使用 ACME；如果你没有域名，可以重新运行并选择 VPS IP 模式。"
+      fi
       if [[ -z "${email}" ]]; then
         if [[ "${HY2_YES:-false}" == "true" ]]; then
           error "--yes 模式下必须提供 --email。"
