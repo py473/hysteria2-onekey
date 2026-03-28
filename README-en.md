@@ -19,6 +19,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [After Installation](#after-installation)
 - [Files](#files)
 - [Changelog](#changelog)
+- [Troubleshooting](#troubleshooting)
 - [Notes](#notes)
 - [License](#license)
 
@@ -90,6 +91,10 @@ The script usually generates the following files on the server:
 ## Changelog
 
 - [CHANGELOG.md](CHANGELOG.md)
+
+## Troubleshooting
+
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ## Notes
 
