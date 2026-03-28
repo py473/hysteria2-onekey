@@ -34,6 +34,44 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 cat /root/hy2-v2rayn.txt
 ```
 
+### 6. 安装基础工具
+
+#### Debian / Ubuntu
+
+```bash
+apt update
+apt install -y curl wget ufw
+```
+
+#### Rocky Linux / CentOS Stream / Fedora
+
+```bash
+dnf install -y curl wget ufw
+```
+
+### 7. 检查监听与服务状态
+
+```bash
+ss -lunp | grep 443
+systemctl status hysteria-server.service --no-pager
+journalctl -u hysteria-server.service -e --no-pager
+```
+
+### 8. 使用 UFW 放行端口
+
+```bash
+ufw allow 443/udp
+ufw allow 443/tcp
+ufw status
+```
+
+### 9. 使用 iptables 放行端口
+
+```bash
+iptables -I INPUT -p udp --dport 443 -j ACCEPT
+iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+```
+
 ## English
 
 ### 1. Online install
@@ -66,4 +104,42 @@ After installation, check:
 
 ```bash
 cat /root/hy2-v2rayn.txt
+```
+
+### 6. Install basic tools
+
+#### Debian / Ubuntu
+
+```bash
+apt update
+apt install -y curl wget ufw
+```
+
+#### Rocky Linux / CentOS Stream / Fedora
+
+```bash
+dnf install -y curl wget ufw
+```
+
+### 7. Check listening and service status
+
+```bash
+ss -lunp | grep 443
+systemctl status hysteria-server.service --no-pager
+journalctl -u hysteria-server.service -e --no-pager
+```
+
+### 8. Allow ports with UFW
+
+```bash
+ufw allow 443/udp
+ufw allow 443/tcp
+ufw status
+```
+
+### 9. Allow ports with iptables
+
+```bash
+iptables -I INPUT -p udp --dport 443 -j ACCEPT
+iptables -I INPUT -p tcp --dport 443 -j ACCEPT
 ```

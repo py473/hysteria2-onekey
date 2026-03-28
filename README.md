@@ -17,7 +17,6 @@
 - [在线安装](#在线安装)
 - [安装说明](#安装说明)
 - [示例命令](#示例命令)
-- [文档总览](#文档总览)
 - [本地运行](#本地运行)
 - [安装完成后](#安装完成后)
 - [文件说明](#文件说明)
@@ -27,6 +26,7 @@
 - [支持](#支持)
 - [安全](#安全)
 - [行为准则](#行为准则)
+- [常用命令](#常用命令)
 - [注意事项](#注意事项)
 - [免责声明](#免责声明)
 - [许可证](#许可证)
@@ -75,10 +75,6 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 - [EXAMPLES.md](EXAMPLES.md)
 
-## 文档总览
-
-- [DOCS.md](DOCS.md)
-
 ## 本地运行
 
 ```bash
@@ -123,7 +119,6 @@ chmod +x hy2-onekey.sh
 - `README-en.md`：英文说明
 - `INSTALLATION.md`：新手安装说明
 - `EXAMPLES.md`：示例命令
-- `DOCS.md`：文档总览
 
 ## 更新日志
 
@@ -155,12 +150,18 @@ chmod +x hy2-onekey.sh
 
 - 社区行为准则：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
+## 常用命令
+
+- 新手安装说明：[INSTALLATION.md](INSTALLATION.md)
+- 示例命令：[EXAMPLES.md](EXAMPLES.md)
+
 ## 注意事项
 
 - 本脚本仅面向 Linux / Unix 服务器，不支持 Windows。
 - Hysteria 2 服务端通常需要放行 `UDP 443`。
 - 如果使用 ACME 证书，请确保域名已解析到 VPS。
 - 伪装地址支持直接输入域名，脚本会自动补全 `https://`。
+- 如果你使用 UFW，请先安装 `ufw`，并放行 `443/udp` 与 `443/tcp`。
 
 ## 免责声明
 

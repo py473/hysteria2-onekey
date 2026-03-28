@@ -2,6 +2,13 @@
 
 ## 中文
 
+### 0. 安装基础工具
+
+```bash
+apt update
+apt install -y curl wget ufw
+```
+
 ### 1. 服务启动失败
 
 先检查服务状态和日志：
@@ -24,6 +31,21 @@ ss -lunp | grep 443
 如果没有输出，说明服务没有真正监听成功，优先看服务日志。
 
 如果已经监听，再检查云厂商安全组和本机防火墙是否放行 UDP 443。
+
+如果你使用 UFW，可以执行：
+
+```bash
+ufw allow 443/udp
+ufw allow 443/tcp
+ufw status
+```
+
+如果你使用 iptables，可以执行：
+
+```bash
+iptables -I INPUT -p udp --dport 443 -j ACCEPT
+iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+```
 
 ### 3. 伪装地址报错
 
@@ -99,10 +121,6 @@ chmod 750 /etc/hysteria
 chmod 640 /etc/hysteria/config.yaml
 systemctl restart hysteria-server.service
 ```
-
-If the above steps do not solve your problem, please open a GitHub issue:
-
-- <https://github.com/py473/hysteria2-onekey/issues>
 
 If the above steps do not solve your problem, please open a GitHub issue:
 

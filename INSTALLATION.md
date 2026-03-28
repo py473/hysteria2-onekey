@@ -6,6 +6,27 @@
 
 先通过 SSH 登录到你的 VPS。
 
+### 1.1 安装基础工具
+
+#### Debian / Ubuntu
+
+```bash
+apt update
+apt install -y curl wget ufw
+```
+
+#### Rocky Linux / CentOS Stream / Fedora
+
+```bash
+dnf install -y curl wget ufw
+```
+
+如果你的系统没有 `dnf`，可以尝试：
+
+```bash
+yum install -y curl wget ufw
+```
+
 ### 2. 使用一键在线安装
 
 推荐命令：
@@ -51,11 +72,57 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 如果连接失败，请先查看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
+### 7. 开放端口与检查命令
+
+#### UFW
+
+```bash
+ufw allow 443/udp
+ufw allow 443/tcp
+ufw status
+```
+
+#### iptables
+
+```bash
+iptables -I INPUT -p udp --dport 443 -j ACCEPT
+iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+```
+
+#### 检查监听与服务状态
+
+```bash
+ss -lunp | grep 443
+systemctl status hysteria-server.service --no-pager
+journalctl -u hysteria-server.service -e --no-pager
+```
+
 ## English
 
 ### 1. Connect to your Linux server
 
 Log in to your VPS over SSH.
+
+### 1.1 Install basic tools
+
+#### Debian / Ubuntu
+
+```bash
+apt update
+apt install -y curl wget ufw
+```
+
+#### Rocky Linux / CentOS Stream / Fedora
+
+```bash
+dnf install -y curl wget ufw
+```
+
+If your system does not use `dnf`, try:
+
+```bash
+yum install -y curl wget ufw
+```
 
 ### 2. Use the one-line installer
 
@@ -101,3 +168,28 @@ Check the following files:
 Import the generated Hysteria2 node information into v2rayN.
 
 If the connection fails, first check [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+### 7. Open ports and check commands
+
+#### UFW
+
+```bash
+ufw allow 443/udp
+ufw allow 443/tcp
+ufw status
+```
+
+#### iptables
+
+```bash
+iptables -I INPUT -p udp --dport 443 -j ACCEPT
+iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+```
+
+#### Check listening and service status
+
+```bash
+ss -lunp | grep 443
+systemctl status hysteria-server.service --no-pager
+journalctl -u hysteria-server.service -e --no-pager
+```

@@ -17,7 +17,6 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Online Install](#online-install)
 - [Installation Guide](#installation-guide)
 - [Examples](#examples)
-- [Docs Overview](#docs-overview)
 - [Local Run](#local-run)
 - [After Installation](#after-installation)
 - [Files](#files)
@@ -27,6 +26,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Support](#support)
 - [Security](#security)
 - [Code of Conduct](#code-of-conduct)
+- [Common Commands](#common-commands)
 - [Notes](#notes)
 - [License](#license)
 
@@ -74,10 +74,6 @@ After the installer starts, it will show a menu. Please enter the menu number di
 
 - [EXAMPLES.md](EXAMPLES.md)
 
-## Docs Overview
-
-- [DOCS.md](DOCS.md)
-
 ## Local Run
 
 ```bash
@@ -122,7 +118,6 @@ The script usually generates the following files on the server:
 - `README-en.md`: English project overview
 - `INSTALLATION.md`: beginner installation guide
 - `EXAMPLES.md`: example commands
-- `DOCS.md`: documentation overview
 
 ## Changelog
 
@@ -154,12 +149,18 @@ If you discover a security issue related to this project, please report it via G
 
 - Community guidelines: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
+## Common Commands
+
+- Installation guide: [INSTALLATION.md](INSTALLATION.md)
+- Example commands: [EXAMPLES.md](EXAMPLES.md)
+
 ## Notes
 
 - This project is for Linux / Unix server systems only. It does not support Windows.
 - Hysteria 2 servers usually require UDP 443 to be open.
 - If you use ACME certificates, make sure your domain resolves to the VPS.
 - Masquerade URLs can be entered as plain domains; the script will automatically prepend `https://`.
+- If you use UFW, install `ufw` first and allow both `443/udp` and `443/tcp`.
 
 ## License
 
