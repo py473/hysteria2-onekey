@@ -178,7 +178,6 @@ chmod +x hy2-onekey.sh
 - 本脚本仅面向 Linux / Unix 服务器，不支持 Windows。
 - Hysteria 2 服务端通常需要放行 `UDP 443`。
 - 如果使用 ACME 证书，请确保域名已解析到 VPS。
-- 如果没有域名，可在安装时选择 VPS IP 模式，脚本会自动生成自签名证书。
 - 伪装地址支持直接输入域名，脚本会自动补全 `https://`。
 - 如果你使用 UFW，请先安装 `ufw`，并放行 `443/udp` 与 `443/tcp`。
 

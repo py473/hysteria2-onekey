@@ -177,7 +177,6 @@ If you discover a security issue related to this project, please report it via G
 - This project is for Linux / Unix server systems only. It does not support Windows.
 - Hysteria 2 servers usually require UDP 443 to be open.
 - If you use ACME certificates, make sure your domain resolves to the VPS.
-- If you do not have a domain, choose VPS IP mode during installation and the script will generate a self-signed certificate automatically.
 - Masquerade URLs can be entered as plain domains; the script will automatically prepend `https://`.
 - If you use UFW, install `ufw` first and allow both `443/udp` and `443/tcp`.
 

@@ -74,105 +74,6 @@ prompt_required() {
   done
 }
 
-detect_public_ip() {
-  local detected_ip=""
-
-  if command -v curl >/dev/null 2>&1; then
-    detected_ip="$(curl -4 -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)"
-  fi
-
-  if [[ -z "${detected_ip}" ]] && command -v hostname >/dev/null 2>&1; then
-    detected_ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
-  fi
-
-  if [[ -z "${detected_ip}" ]]; then
-    error "无法自动获取 VPS IP，请手动使用 --server 指定。"
-    exit 1
-  fi
-
-  printf '%s' "${detected_ip}"
-}
-
-resolve_domain_ips() {
-  local domain="$1"
-  local ips=""
-
-  if command -v getent >/dev/null 2>&1; then
-    ips="$(getent ahostsv4 "${domain}" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true)"
-    if [[ -z "${ips}" ]]; then
-      ips="$(getent ahostsv6 "${domain}" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true)"
-    fi
-  fi
-
-  printf '%s' "${ips}"
-}
-
-check_domain_points_to_vps() {
-  local domain="$1"
-  local public_ip
-  local domain_ips
-
-  public_ip="$(detect_public_ip)"
-  domain_ips="$(resolve_domain_ips "${domain}")"
-
-  if [[ -z "${domain_ips}" ]]; then
-    warn "未能解析到域名 ${domain} 的 IP，ACME 可能会失败。请确认 DNS 已生效。"
-    return 1
-  fi
-
-  for resolved_ip in ${domain_ips}; do
-    if [[ "${resolved_ip}" == "${public_ip}" ]]; then
-      return 0
-    fi
-  done
-
-  warn "域名 ${domain} 解析到的 IP 为: ${domain_ips}"
-  warn "当前 VPS 公网 IP 为: ${public_ip}"
-  warn "如果这不是同一个 IP，ACME 可能会失败；你也可以改用 VPS IP 模式。"
-  return 1
-}
-
-generate_self_signed_cert() {
-  local host="$1"
-  local cert_path="/etc/hysteria/selfsigned.crt"
-  local key_path="/etc/hysteria/selfsigned.key"
-  local openssl_config
-
-  require_cmd openssl
-
-  openssl_config="$(mktemp)"
-  cat >"${openssl_config}" <<EOF
-[req]
-default_bits = 2048
-prompt = no
-default_md = sha256
-distinguished_name = dn
-x509_extensions = v3_req
-
-[dn]
-CN = ${host}
-
-[v3_req]
-subjectAltName = @alt_names
-
-[alt_names]
-EOF
-
-  if [[ "${host}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ || "${host}" == *:* ]]; then
-    echo "IP.1 = ${host}" >>"${openssl_config}"
-  else
-    echo "DNS.1 = ${host}" >>"${openssl_config}"
-  fi
-
-  openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
-    -keyout "${key_path}" -out "${cert_path}" -config "${openssl_config}" >/dev/null 2>&1
-  rm -f "${openssl_config}"
-
-  chmod 600 "${cert_path}" "${key_path}"
-  SELF_SIGNED_CERT_PATH="${cert_path}"
-  SELF_SIGNED_KEY_PATH="${key_path}"
-}
-
 print_usage() {
   cat <<'EOF'
 用法:
@@ -194,7 +95,6 @@ print_usage() {
   --password PASSWORD                  认证密码，留空自动生成
   --server HOST                        客户端连接地址（默认使用 domain）
   --sni HOST                           客户端 SNI，默认使用 server/domain
-  --use-ip                             没有域名时使用 VPS IP 并自动生成自签名证书
   --masquerade-url URL                 伪装地址 URL
   --no-masquerade                      关闭伪装
   --insecure                           客户端 TLS 忽略校验，适合自签名证书
@@ -389,12 +289,9 @@ write_client_example() {
   local password="$3"
   local sni="$4"
   local insecure="$5"
-  local server_host
-
-  server_host="$(uri_host "${server_addr}")"
 
   cat >"${CLIENT_EXAMPLE_PATH}" <<EOF
-server: "${server_host}:${port}"
+server: "${server_addr}:${port}"
 auth: ${password}
 
 tls:
@@ -419,7 +316,7 @@ restart_service() {
   if systemctl is-active --quiet "${SERVICE_NAME}"; then
     success "服务已启动。"
   else
-    error "服务启动失败。请先执行 systemctl status ${SERVICE_NAME} --no-pager，再执行 journalctl --no-pager -e -u ${SERVICE_NAME} 查看日志。"
+    error "服务启动失败，请执行 journalctl --no-pager -e -u ${SERVICE_NAME} 查看日志。"
     exit 1
   fi
 }
@@ -459,12 +356,9 @@ deploy_with_config() {
   local server_addr
   local sni
   local TLS_INSECURE="false"
-  local self_signed_cert_path=""
-  local self_signed_key_path=""
   local tls_choice="${HY2_TLS:-1}"
   local listen_port="${HY2_LISTEN_PORT:-443}"
   local auth_password="${HY2_PASSWORD:-}"
-  local use_ip_mode="${HY2_USE_IP:-false}"
 
   if [[ -z "${auth_password}" ]]; then
     auth_password="$(random_password)"
@@ -488,52 +382,25 @@ deploy_with_config() {
     local email="${HY2_EMAIL:-}"
 
     if [[ -z "${domain}" ]]; then
-      if [[ "${use_ip_mode}" == "true" || "${HY2_YES:-false}" == "true" ]]; then
-        domain="$(detect_public_ip)"
-        use_ip_mode="true"
-        warn "未提供域名，已自动改用 VPS IP：${domain}"
-      else
-        echo
-        echo "未检测到域名，请选择部署方式："
-        echo "  1) 使用域名并申请 ACME 证书"
-        echo "  2) 直接使用 VPS IP（自动生成自签名证书）"
-        read -r -p "请输入选项 [1-2，默认 1]: " domain_choice
-        domain_choice="${domain_choice:-1}"
-
-        if [[ "${domain_choice}" == "2" ]]; then
-          domain="$(detect_public_ip)"
-          use_ip_mode="true"
-          warn "已选择 VPS IP 模式：${domain}"
-        else
-          domain="$(prompt_required "请输入你的域名（需已解析到 VPS）")"
-        fi
+      if [[ "${HY2_YES:-false}" == "true" ]]; then
+        error "--yes 模式下必须提供 --domain。"
+        exit 1
       fi
+      domain="$(prompt_required "请输入你的域名（需已解析到 VPS）")"
+    fi
+    if [[ -z "${email}" ]]; then
+      if [[ "${HY2_YES:-false}" == "true" ]]; then
+        error "--yes 模式下必须提供 --email。"
+        exit 1
+      fi
+      email="$(prompt_required "请输入 ACME 邮箱")"
     fi
 
-    if [[ "${use_ip_mode}" == "true" ]]; then
-      generate_self_signed_cert "${domain}"
-      write_config_cert "${SELF_SIGNED_CERT_PATH}" "${SELF_SIGNED_KEY_PATH}" "${listen_port}" "${auth_password}"
-      server_addr="${domain}"
-      sni="${domain}"
-      TLS_INSECURE="true"
-    else
-      if ! check_domain_points_to_vps "${domain}"; then
-        warn "建议先修正 DNS 再继续使用 ACME；如果你没有域名，可以重新运行并选择 VPS IP 模式。"
-      fi
-      if [[ -z "${email}" ]]; then
-        if [[ "${HY2_YES:-false}" == "true" ]]; then
-          error "--yes 模式下必须提供 --email。"
-          exit 1
-        fi
-        email="$(prompt_required "请输入 ACME 邮箱")"
-      fi
+    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}"
 
-      write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}"
-
-      server_addr="${domain}"
-      sni="${domain}"
-      TLS_INSECURE="false"
-    fi
+    server_addr="${domain}"
+    sni="${domain}"
+    TLS_INSECURE="false"
   else
     local cert_path="${HY2_CERT:-}"
     local key_path="${HY2_KEY:-}"
@@ -695,10 +562,6 @@ main() {
             --sni)
               HY2_SNI="${2:-}"
               shift 2
-              ;;
-            --use-ip|--no-domain)
-              HY2_USE_IP="true"
-              shift 1
               ;;
             --masquerade-url)
               HY2_MASQUERADE_URL="${2:-}"
