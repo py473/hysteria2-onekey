@@ -112,6 +112,12 @@ The script usually generates the following files on the server:
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
 ```
 
+### No-domain / IP mode
+
+```bash
+./hy2-onekey.sh --deploy --tls ip --yes
+```
+
 ## Files
 
 - `install.sh`: online installer entry

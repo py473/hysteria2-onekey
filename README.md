@@ -113,6 +113,12 @@ chmod +x hy2-onekey.sh
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
 ```
 
+### 无域名 / IP 模式
+
+```bash
+./hy2-onekey.sh --deploy --tls ip --yes
+```
+
 ## 文件说明
 
 - `install.sh`：在线安装入口
