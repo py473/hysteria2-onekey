@@ -14,7 +14,7 @@
 ## Installation
 
 ```bash
-wget -qO- https://github.com/py473/hysteria2-onekey/raw/main/install.sh | bash
+wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onekey/raw/main/install.sh && bash /tmp/hysteria2-onekey-install.sh
 ```
 
 ## Notes
