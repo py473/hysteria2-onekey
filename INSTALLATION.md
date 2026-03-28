@@ -72,6 +72,8 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 如果连接失败，请先查看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
+如果你还想查看支持哪些客户端和官方下载地址，请看 [CLIENTS.md](CLIENTS.md)。
+
 ### 7. 开放端口与检查命令
 
 #### UFW
@@ -168,6 +170,8 @@ Check the following files:
 Import the generated Hysteria2 node information into v2rayN.
 
 If the connection fails, first check [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+If you want to see which clients are supported and where to download them, check [CLIENTS.md](CLIENTS.md).
 
 ### 7. Open ports and check commands
 

@@ -34,6 +34,8 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 cat /root/hy2-v2rayn.txt
 ```
 
+支持的客户端和官方下载地址请看 [CLIENTS.md](CLIENTS.md)。
+
 ### 6. 安装基础工具
 
 #### Debian / Ubuntu
@@ -105,6 +107,8 @@ After installation, check:
 ```bash
 cat /root/hy2-v2rayn.txt
 ```
+
+For supported clients and official download links, see [CLIENTS.md](CLIENTS.md).
 
 ### 6. Install basic tools
 
