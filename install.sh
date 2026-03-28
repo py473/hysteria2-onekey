@@ -44,7 +44,11 @@ main() {
   download_script
   chmod +x "${TMP_SCRIPT}"
   echo "正在下载并启动主脚本..."
-  bash "${TMP_SCRIPT}" "$@"
+  if [[ -r /dev/tty ]]; then
+    bash "${TMP_SCRIPT}" "$@" </dev/tty
+  else
+    bash "${TMP_SCRIPT}" "$@"
+  fi
 }
 
 main "$@"

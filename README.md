@@ -29,14 +29,16 @@
 推荐直接使用下面这一条：
 
 ```bash
-wget -qO- https://github.com/py473/hysteria2-onekey/raw/main/install.sh | bash
+wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onekey/raw/main/install.sh && bash /tmp/hysteria2-onekey-install.sh
 ```
 
 如果服务器没有 `wget`，也可以使用 `curl`：
 
 ```bash
-curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh | bash
+curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp/hysteria2-onekey-install.sh && bash /tmp/hysteria2-onekey-install.sh
 ```
+
+安装器启动后，会显示菜单，请直接在菜单里输入数字选项，不要回到 shell 提示符后再输入。
 
 ## 本地运行
 
