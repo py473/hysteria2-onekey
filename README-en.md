@@ -45,7 +45,6 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - Interactive server configuration generation
 - ACME automatic certificate support
 - Custom certificate support
-- Supports no-domain / IP self-signed deployment
 - Custom masquerade URL support
 - v2rayN-compatible node output
 - QR code output for easy import
@@ -67,8 +66,6 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 ```
 
 After the installer starts, it will show a menu. Please enter the menu number directly in the menu, not at the shell prompt.
-
-After you choose to install, the script will let you select ACME domain certificate, custom certificate, or no-domain / IP self-signed deployment.
 
 ## Installation Guide
 
@@ -112,12 +109,6 @@ The script usually generates the following files on the server:
 
 ```bash
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
-```
-
-### No-domain / IP mode
-
-```bash
-./hy2-onekey.sh --deploy --tls ip --yes
 ```
 
 ## Files
@@ -186,6 +177,7 @@ If you discover a security issue related to this project, please report it via G
 - This project is for Linux / Unix server systems only. It does not support Windows.
 - Hysteria 2 servers usually require UDP 443 to be open.
 - If you use ACME certificates, make sure your domain resolves to the VPS.
+- If you do not have a domain, choose VPS IP mode during installation and the script will generate a self-signed certificate automatically.
 - Masquerade URLs can be entered as plain domains; the script will automatically prepend `https://`.
 - If you use UFW, install `ufw` first and allow both `443/udp` and `443/tcp`.
 

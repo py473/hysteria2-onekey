@@ -1,7 +1,5 @@
 # Examples / 示例命令
 
-安装时会先让你选择 ACME 域名证书、自有证书或无域名 / IP 自签名模式。
-
 ## 中文
 
 ### 1. 在线安装
@@ -22,19 +20,13 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
 ```
 
-### 4. 无域名 / IP 模式快速部署
-
-```bash
-./hy2-onekey.sh --deploy --tls ip --yes
-```
-
-### 5. 仅查看帮助
+### 4. 仅查看帮助
 
 ```bash
 ./hy2-onekey.sh --help
 ```
 
-### 6. v2rayN 导入
+### 5. v2rayN 导入
 
 安装完成后，查看：
 
@@ -44,7 +36,7 @@ cat /root/hy2-v2rayn.txt
 
 支持的客户端和官方下载地址请看 [CLIENTS.md](CLIENTS.md)。
 
-### 7. 安装基础工具
+### 6. 安装基础工具
 
 #### Debian / Ubuntu
 
@@ -59,7 +51,7 @@ apt install -y curl wget ufw
 dnf install -y curl wget ufw
 ```
 
-### 8. 检查监听与服务状态
+### 7. 检查监听与服务状态
 
 ```bash
 ss -lunp | grep 443
@@ -67,7 +59,7 @@ systemctl status hysteria-server.service --no-pager
 journalctl -u hysteria-server.service -e --no-pager
 ```
 
-### 9. 使用 UFW 放行端口
+### 8. 使用 UFW 放行端口
 
 ```bash
 ufw allow 443/udp
@@ -75,7 +67,7 @@ ufw allow 443/tcp
 ufw status
 ```
 
-### 10. 使用 iptables 放行端口
+### 9. 使用 iptables 放行端口
 
 ```bash
 iptables -I INPUT -p udp --dport 443 -j ACCEPT
@@ -102,19 +94,13 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
 ```
 
-### 4. Quick deploy without a domain / IP mode
-
-```bash
-./hy2-onekey.sh --deploy --tls ip --yes
-```
-
-### 5. Show help
+### 4. Show help
 
 ```bash
 ./hy2-onekey.sh --help
 ```
 
-### 6. v2rayN import
+### 5. v2rayN import
 
 After installation, check:
 
@@ -124,7 +110,7 @@ cat /root/hy2-v2rayn.txt
 
 For supported clients and official download links, see [CLIENTS.md](CLIENTS.md).
 
-### 7. Install basic tools
+### 6. Install basic tools
 
 #### Debian / Ubuntu
 
@@ -139,7 +125,7 @@ apt install -y curl wget ufw
 dnf install -y curl wget ufw
 ```
 
-### 8. Check listening and service status
+### 7. Check listening and service status
 
 ```bash
 ss -lunp | grep 443
@@ -147,7 +133,7 @@ systemctl status hysteria-server.service --no-pager
 journalctl -u hysteria-server.service -e --no-pager
 ```
 
-### 9. Allow ports with UFW
+### 8. Allow ports with UFW
 
 ```bash
 ufw allow 443/udp
@@ -155,7 +141,7 @@ ufw allow 443/tcp
 ufw status
 ```
 
-### 10. Allow ports with iptables
+### 9. Allow ports with iptables
 
 ```bash
 iptables -I INPUT -p udp --dport 443 -j ACCEPT

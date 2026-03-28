@@ -74,6 +74,66 @@ prompt_required() {
   done
 }
 
+detect_public_ip() {
+  local detected_ip=""
+
+  if command -v curl >/dev/null 2>&1; then
+    detected_ip="$(curl -4 -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)"
+  fi
+
+  if [[ -z "${detected_ip}" ]] && command -v hostname >/dev/null 2>&1; then
+    detected_ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+  fi
+
+  if [[ -z "${detected_ip}" ]]; then
+    error "无法自动获取 VPS IP，请手动使用 --server 指定。"
+    exit 1
+  fi
+
+  printf '%s' "${detected_ip}"
+}
+
+generate_self_signed_cert() {
+  local host="$1"
+  local cert_path="/etc/hysteria/selfsigned.crt"
+  local key_path="/etc/hysteria/selfsigned.key"
+  local openssl_config
+
+  require_cmd openssl
+
+  openssl_config="$(mktemp)"
+  cat >"${openssl_config}" <<EOF
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_req
+
+[dn]
+CN = ${host}
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+EOF
+
+  if [[ "${host}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ || "${host}" == *:* ]]; then
+    echo "IP.1 = ${host}" >>"${openssl_config}"
+  else
+    echo "DNS.1 = ${host}" >>"${openssl_config}"
+  fi
+
+  openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+    -keyout "${key_path}" -out "${cert_path}" -config "${openssl_config}" >/dev/null 2>&1
+  rm -f "${openssl_config}"
+
+  chmod 600 "${cert_path}" "${key_path}"
+  SELF_SIGNED_CERT_PATH="${cert_path}"
+  SELF_SIGNED_KEY_PATH="${key_path}"
+}
+
 print_usage() {
   cat <<'EOF'
 用法:
@@ -86,71 +146,21 @@ print_usage() {
   Ubuntu / Debian / Rocky Linux / CentOS Stream / Fedora 等常见 systemd 服务器系统
 
 部署参数:
-  --tls acme|cert|ip                   TLS 方式，默认根据参数自动选择
+  --tls acme|cert                      TLS 方式，默认 acme
   --domain DOMAIN                      ACME 域名
   --email EMAIL                        ACME 邮箱
   --cert PATH                          证书文件路径
   --key PATH                           私钥文件路径
   --listen-port PORT                   监听端口，默认 443
   --password PASSWORD                  认证密码，留空自动生成
-  --server HOST                        客户端连接地址（默认使用 domain 或自动检测 IP）
-  --sni HOST                           客户端 SNI，默认使用 server/domain/IP
+  --server HOST                        客户端连接地址（默认使用 domain）
+  --sni HOST                           客户端 SNI，默认使用 server/domain
+  --use-ip                             没有域名时使用 VPS IP 并自动生成自签名证书
   --masquerade-url URL                 伪装地址 URL
   --no-masquerade                      关闭伪装
   --insecure                           客户端 TLS 忽略校验，适合自签名证书
   --yes                                直接执行，不再询问确认
 EOF
-}
-
-detect_public_ip() {
-  local detected_ip=""
-
-  if command -v ip >/dev/null 2>&1; then
-    detected_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) { if ($i == "src") { print $(i + 1); exit } } }')"
-  fi
-
-  if [[ -z "${detected_ip}" ]] && command -v hostname >/dev/null 2>&1; then
-    detected_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-  fi
-
-  if [[ -z "${detected_ip}" ]]; then
-    detected_ip="127.0.0.1"
-  fi
-
-  printf '%s' "${detected_ip}"
-}
-
-generate_self_signed_cert() {
-  local server_ip="$1"
-  local cert_path="$2"
-  local key_path="$3"
-  local openssl_conf
-
-  require_cmd openssl
-
-  openssl_conf="$(mktemp)"
-  cat >"${openssl_conf}" <<EOF
-[req]
-default_bits = 2048
-prompt = no
-default_md = sha256
-distinguished_name = dn
-x509_extensions = v3_req
-
-[dn]
-CN = ${server_ip}
-
-[v3_req]
-subjectAltName = @alt_names
-
-[alt_names]
-IP.1 = ${server_ip}
-EOF
-
-  openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
-    -keyout "${key_path}" -out "${cert_path}" -config "${openssl_conf}" >/dev/null 2>&1
-  rm -f "${openssl_conf}"
-  chmod 600 "${cert_path}" "${key_path}"
 }
 
 print_qr_code() {
@@ -291,30 +301,6 @@ prompt_tls_insecure() {
   fi
 }
 
-prompt_tls_mode() {
-  local choice
-  echo
-  echo "请选择 TLS / 部署模式："
-  echo "  1) ACME 域名证书（有域名，推荐）"
-  echo "  2) 自有证书（有域名或已有证书）"
-  echo "  3) 无域名 / IP 自签名部署"
-  echo "    - 1：适合已有域名且已解析到 VPS 的用户"
-  echo "    - 2：适合已有证书文件的用户"
-  echo "    - 3：适合没有域名、直接使用 VPS IP 的用户"
-  read -r -p "请输入选项 [1-3，默认 1]: " choice
-  choice="${choice:-1}"
-
-  case "${choice}" in
-    1|2|3)
-      echo "${choice}"
-      ;;
-    *)
-      warn "无效选项，已默认选择 ACME 域名证书。"
-      echo "1"
-      ;;
-  esac
-}
-
 write_config_acme() {
   local domain="$1"
   local email="$2"
@@ -434,35 +420,16 @@ deploy_with_config() {
   local server_addr
   local sni
   local TLS_INSECURE="false"
-  local tls_choice="${HY2_TLS:-}"
+  local self_signed_cert_path=""
+  local self_signed_key_path=""
+  local tls_choice="${HY2_TLS:-1}"
   local listen_port="${HY2_LISTEN_PORT:-443}"
   local auth_password="${HY2_PASSWORD:-}"
+  local use_ip_mode="${HY2_USE_IP:-false}"
 
   if [[ -z "${auth_password}" ]]; then
     auth_password="$(random_password)"
     success "已自动生成认证密码。"
-  fi
-
-  if [[ -z "${tls_choice}" ]]; then
-    if [[ "${HY2_YES:-false}" == "true" ]]; then
-      if [[ -n "${HY2_CERT:-}" || -n "${HY2_KEY:-}" ]]; then
-        tls_choice="2"
-      elif [[ -n "${HY2_DOMAIN:-}" ]]; then
-        tls_choice="1"
-      else
-        tls_choice="3"
-      fi
-    else
-      tls_choice="$(prompt_tls_mode)"
-    fi
-  fi
-
-  if [[ "${tls_choice}" == "acme" ]]; then
-    tls_choice="1"
-  elif [[ "${tls_choice}" == "cert" ]]; then
-    tls_choice="2"
-  elif [[ "${tls_choice}" == "ip" || "${tls_choice}" == "self-signed" ]]; then
-    tls_choice="3"
   fi
 
   if [[ -n "${HY2_MASQUERADE_URL:-}" ]]; then
@@ -482,95 +449,97 @@ deploy_with_config() {
     local email="${HY2_EMAIL:-}"
 
     if [[ -z "${domain}" ]]; then
-      if [[ "${HY2_YES:-false}" == "true" ]]; then
-        error "--yes 模式下必须提供 --domain。"
-        exit 1
-      fi
-      domain="$(prompt_required "请输入你的域名（需已解析到 VPS）")"
-    fi
-    if [[ -z "${email}" ]]; then
-      if [[ "${HY2_YES:-false}" == "true" ]]; then
-        error "--yes 模式下必须提供 --email。"
-        exit 1
-      fi
-      email="$(prompt_required "请输入 ACME 邮箱")"
-    fi
+      if [[ "${use_ip_mode}" == "true" || "${HY2_YES:-false}" == "true" ]]; then
+        domain="$(detect_public_ip)"
+        use_ip_mode="true"
+        warn "未提供域名，已自动改用 VPS IP：${domain}"
+      else
+        echo
+        echo "未检测到域名，请选择部署方式："
+        echo "  1) 使用域名并申请 ACME 证书"
+        echo "  2) 直接使用 VPS IP（自动生成自签名证书）"
+        read -r -p "请输入选项 [1-2，默认 1]: " domain_choice
+        domain_choice="${domain_choice:-1}"
 
-    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}"
-
-    server_addr="${domain}"
-    sni="${domain}"
-    TLS_INSECURE="false"
-  else
-    if [[ "${tls_choice}" == "3" ]]; then
-      local server_ip="${HY2_SERVER:-}"
-      local cert_path="/etc/hysteria/ip-selfsigned.crt"
-      local key_path="/etc/hysteria/ip-selfsigned.key"
-
-      if [[ -z "${server_ip}" ]]; then
-        if [[ "${HY2_YES:-false}" == "true" ]]; then
-          server_ip="$(detect_public_ip)"
-          info "未提供 --server，已自动使用检测到的 IP: ${server_ip}"
+        if [[ "${domain_choice}" == "2" ]]; then
+          domain="$(detect_public_ip)"
+          use_ip_mode="true"
+          warn "已选择 VPS IP 模式：${domain}"
         else
-          server_ip="$(prompt_default "请输入服务器 IP（留空自动检测）" "$(detect_public_ip)")"
+          domain="$(prompt_required "请输入你的域名（需已解析到 VPS）")"
         fi
       fi
+    fi
 
-      generate_self_signed_cert "${server_ip}" "${cert_path}" "${key_path}"
-      write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}"
-
-      server_addr="${server_ip}"
-      sni="${server_ip}"
+    if [[ "${use_ip_mode}" == "true" ]]; then
+      generate_self_signed_cert "${domain}"
+      write_config_cert "${SELF_SIGNED_CERT_PATH}" "${SELF_SIGNED_KEY_PATH}" "${listen_port}" "${auth_password}"
+      server_addr="${domain}"
+      sni="${domain}"
       TLS_INSECURE="true"
     else
-      local cert_path="${HY2_CERT:-}"
-      local key_path="${HY2_KEY:-}"
-
-      if [[ -z "${cert_path}" ]]; then
+      if [[ -z "${email}" ]]; then
         if [[ "${HY2_YES:-false}" == "true" ]]; then
-          error "--yes 模式下必须提供 --cert。"
+          error "--yes 模式下必须提供 --email。"
           exit 1
         fi
-        cert_path="$(prompt_required "请输入证书文件路径（cert）")"
-      fi
-      if [[ -z "${key_path}" ]]; then
-        if [[ "${HY2_YES:-false}" == "true" ]]; then
-          error "--yes 模式下必须提供 --key。"
-          exit 1
-        fi
-        key_path="$(prompt_required "请输入私钥文件路径（key）")"
+        email="$(prompt_required "请输入 ACME 邮箱")"
       fi
 
-      if [[ ! -f "${cert_path}" || ! -f "${key_path}" ]]; then
-        error "证书文件不存在，请检查路径后重试。"
+      write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}"
+
+      server_addr="${domain}"
+      sni="${domain}"
+      TLS_INSECURE="false"
+    fi
+  else
+    local cert_path="${HY2_CERT:-}"
+    local key_path="${HY2_KEY:-}"
+
+    if [[ -z "${cert_path}" ]]; then
+      if [[ "${HY2_YES:-false}" == "true" ]]; then
+        error "--yes 模式下必须提供 --cert。"
         exit 1
       fi
-
-      write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}"
-
-      server_addr="${HY2_SERVER:-}"
-      if [[ -z "${server_addr}" ]]; then
-        if [[ "${HY2_YES:-false}" == "true" ]]; then
-          error "--yes 模式下必须提供 --server。"
-          exit 1
-        fi
-        server_addr="$(prompt_required "请输入客户端连接地址（域名或 IP）")"
+      cert_path="$(prompt_required "请输入证书文件路径（cert）")"
+    fi
+    if [[ -z "${key_path}" ]]; then
+      if [[ "${HY2_YES:-false}" == "true" ]]; then
+        error "--yes 模式下必须提供 --key。"
+        exit 1
       fi
-      sni="${HY2_SNI:-}"
-      if [[ -z "${sni}" ]]; then
-        if [[ "${HY2_YES:-false}" == "true" ]]; then
-          sni="${server_addr}"
-        else
-          sni="$(prompt_default "请输入客户端 SNI" "${server_addr}")"
-        fi
+      key_path="$(prompt_required "请输入私钥文件路径（key）")"
+    fi
+
+    if [[ ! -f "${cert_path}" || ! -f "${key_path}" ]]; then
+      error "证书文件不存在，请检查路径后重试。"
+      exit 1
+    fi
+
+    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}"
+
+    server_addr="${HY2_SERVER:-}"
+    if [[ -z "${server_addr}" ]]; then
+      if [[ "${HY2_YES:-false}" == "true" ]]; then
+        error "--yes 模式下必须提供 --server。"
+        exit 1
       fi
-      if [[ "${HY2_INSECURE:-false}" == "true" ]]; then
-        TLS_INSECURE="true"
-      elif [[ "${HY2_YES:-false}" == "true" ]]; then
-        TLS_INSECURE="false"
+      server_addr="$(prompt_required "请输入客户端连接地址（域名或 IP）")"
+    fi
+    sni="${HY2_SNI:-}"
+    if [[ -z "${sni}" ]]; then
+      if [[ "${HY2_YES:-false}" == "true" ]]; then
+        sni="${server_addr}"
       else
-        prompt_tls_insecure
+        sni="$(prompt_default "请输入客户端 SNI" "${server_addr}")"
       fi
+    fi
+    if [[ "${HY2_INSECURE:-false}" == "true" ]]; then
+      TLS_INSECURE="true"
+    elif [[ "${HY2_YES:-false}" == "true" ]]; then
+      TLS_INSECURE="false"
+    else
+      prompt_tls_insecure
     fi
   fi
 
@@ -685,6 +654,10 @@ main() {
               HY2_SNI="${2:-}"
               shift 2
               ;;
+            --use-ip|--no-domain)
+              HY2_USE_IP="true"
+              shift 1
+              ;;
             --masquerade-url)
               HY2_MASQUERADE_URL="${2:-}"
               shift 2
@@ -711,8 +684,6 @@ main() {
         if [[ -z "${HY2_TLS:-}" ]]; then
           if [[ -n "${HY2_CERT:-}" || -n "${HY2_KEY:-}" ]]; then
             HY2_TLS="2"
-          elif [[ -z "${HY2_DOMAIN:-}" ]]; then
-            HY2_TLS="3"
           else
             HY2_TLS="1"
           fi
@@ -720,8 +691,6 @@ main() {
           HY2_TLS="1"
         elif [[ "${HY2_TLS}" == "cert" ]]; then
           HY2_TLS="2"
-        elif [[ "${HY2_TLS}" == "ip" || "${HY2_TLS}" == "self-signed" ]]; then
-          HY2_TLS="3"
         fi
 
         if [[ "${HY2_YES:-false}" == "true" ]]; then

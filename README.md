@@ -46,7 +46,6 @@
 - 交互式生成服务端配置
 - 支持 ACME 自动证书
 - 支持自有证书
-- 支持无域名 / IP 自签名部署
 - 支持自定义伪装地址
 - 自动生成 v2rayN 可导入的 Hysteria2 节点信息
 - 输出二维码，方便扫码导入
@@ -68,8 +67,6 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 ```
 
 安装器启动后，会显示菜单，请直接在菜单里输入数字选项，不要回到 shell 提示符后再输入。
-
-选择安装后，脚本会继续让你在 ACME 域名证书、自有证书、无域名 / IP 自签名部署之间进行选择。
 
 ## 安装说明
 
@@ -113,12 +110,6 @@ chmod +x hy2-onekey.sh
 
 ```bash
 ./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
-```
-
-### 无域名 / IP 模式
-
-```bash
-./hy2-onekey.sh --deploy --tls ip --yes
 ```
 
 ## 文件说明
@@ -187,6 +178,7 @@ chmod +x hy2-onekey.sh
 - 本脚本仅面向 Linux / Unix 服务器，不支持 Windows。
 - Hysteria 2 服务端通常需要放行 `UDP 443`。
 - 如果使用 ACME 证书，请确保域名已解析到 VPS。
+- 如果没有域名，可在安装时选择 VPS IP 模式，脚本会自动生成自签名证书。
 - 伪装地址支持直接输入域名，脚本会自动补全 `https://`。
 - 如果你使用 UFW，请先安装 `ufw`，并放行 `443/udp` 与 `443/tcp`。
 
