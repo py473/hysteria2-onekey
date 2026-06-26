@@ -16,21 +16,11 @@
 
 - [支持环境](#支持环境)
 - [功能](#功能)
-- [在线安装](#在线安装)
-- [安装说明](#安装说明)
-- [示例命令](#示例命令)
-- [本地运行](#本地运行)
+- [快速开始](#快速开始)
+- [保姆级教程](#保姆级教程)
+- [常用命令示例](#常用命令示例)
 - [安装完成后](#安装完成后)
 - [v2.9.2 新功能](#v292-新功能)
-- [文件说明](#文件说明)
-- [更新日志](#更新日志)
-- [常见问题](#常见问题)
-- [FAQ](#faq)
-- [支持](#支持)
-- [客户端](#客户端)
-- [安全](#安全)
-- [行为准则](#行为准则)
-- [常用命令](#常用命令)
 - [注意事项](#注意事项)
 - [免责声明](#免责声明)
 - [许可证](#许可证)
@@ -38,7 +28,7 @@
 ## 支持环境
 
 - Debian 12 / Debian 11
-- Ubuntu 22.00 / 24.04
+- Ubuntu 22.04 / 24.04
 - Rocky Linux
 - CentOS Stream
 - Fedora
@@ -59,10 +49,11 @@
 - 自动生成 v2rayN 可导入的 Hysteria2 节点信息
 - 输出二维码，方便扫码导入
 - 支持参数模式部署
+- **Linux 性能自动优化**：系统缓冲区调优、进程实时优先级、QUIC 流控制窗口
 
-## 在线安装
+## 快速开始
 
-推荐直接使用下面这一条：
+推荐直接使用下面这一条命令：
 
 ```bash
 wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onekey/raw/main/install.sh && bash /tmp/hysteria2-onekey-install.sh
@@ -74,37 +65,77 @@ wget -O /tmp/hysteria2-onekey-install.sh https://github.com/py473/hysteria2-onek
 curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp/hysteria2-onekey-install.sh && bash /tmp/hysteria2-onekey-install.sh
 ```
 
-安装器启动后，会显示菜单，请直接在菜单里输入数字选项，不要回到 shell 提示符后再输入。
+安装器启动后，会显示菜单，请直接在菜单里输入数字选项。
 
-## 安装说明
+## 保姆级教程
 
-- [INSTALLATION.md](INSTALLATION.md)
+如果你是完全新手，或者需要从零开始的详细步骤，请阅读：
 
-## 示例命令
+📘 [**GUIDE.md — Hysteria 2 一键部署保姆级教程**](GUIDE.md)
 
-- [EXAMPLES.md](EXAMPLES.md)
+教程覆盖：
+- VPS 准备和 SSH 连接
+- 一键交互式部署（每一步截图式说明）
+- 命令行模式部署（参数详解）
+- v2rayN 客户端连接设置
+- 日常管理命令
+- 常见问题排错
 
-## 本地运行
+## 常用命令示例
+
+### 交互式部署
 
 ```bash
-cd /root/hysteria
-chmod +x hy2-onekey.sh
-./hy2-onekey.sh
+# 下载主脚本
+wget -O /tmp/hy2-onekey.sh https://github.com/py473/hysteria2-onekey/raw/main/hy2-onekey.sh
+chmod +x /tmp/hy2-onekey.sh
+
+# 运行交互式菜单
+/tmp/hy2-onekey.sh
 ```
 
-查看帮助：
+### 命令行一键部署
 
 ```bash
-./hy2-onekey.sh --help
+# ACME 自动证书（推荐）
+/tmp/hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --yes
+
+# ACME + Gecko 混淆 + 嗅探 + 测速
+/tmp/hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --obfs gecko --sniff --speed-test --yes
+
+# 自有证书
+/tmp/hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --yes
+
+# 多用户 + 带宽限制
+/tmp/hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --auth-type userpass --username user1 --password MyPass123 --bandwidth-up 100 mbps --bandwidth-down 100 mbps --yes
 ```
+
+### 其他操作
+
+```bash
+# 查看帮助
+/tmp/hy2-onekey.sh --help
+
+# 重启服务
+/tmp/hy2-onekey.sh --restart
+
+# 卸载
+/tmp/hy2-onekey.sh --remove
+```
+
+完整参数说明见 [GUIDE.md](GUIDE.md#第四章命令行模式部署更快)。
 
 ## 安装完成后
 
-脚本执行完成后，通常会在服务器上生成：
+脚本执行完成后，服务器上会生成：
 
-- `/etc/hysteria/config.yaml`：服务端配置
-- `/root/hy2-v2rayn.txt`：v2rayN 导入信息
-- `/root/hy2-client.yaml`：客户端示例配置
+| 文件 | 说明 |
+|------|------|
+| `/etc/hysteria/config.yaml` | 服务端主配置（已自动性能优化） |
+| `/root/hy2-v2rayn.txt` | v2rayN 导入信息（复制 URI 即可） |
+| `/root/hy2-client.yaml` | 客户端配置示例 |
+| `/etc/sysctl.d/99-hysteria.conf` | 系统缓冲区优化（持久化） |
+| `/etc/systemd/system/hysteria-server.service.d/priority.conf` | 进程优先级优化（持久化） |
 
 ## v2.9.2 新功能
 
@@ -113,7 +144,7 @@ chmod +x hy2-onekey.sh
 ### 🔐 安全修复
 - 修复 UDP 包绕过 ACL 的安全漏洞
 - 修复未完成/超大的 HTTP 请求可能导致 OOM 的漏洞
-- 修复域名尾随点（如 `example.com.`）绕过 ACL 的问题
+- 修复域名尾随点绕过 ACL 的问题
 
 ### 🆕 混淆 (Obfuscation)
 - **Salamander**：将每个数据包打乱为看似随机的字节
@@ -123,7 +154,6 @@ chmod +x hy2-onekey.sh
 ### 🔍 协议嗅探 (Sniff)
 - 支持 HTTP、TLS (HTTPS)、QUIC (HTTP/3) 协议识别
 - 将 IP 请求自动转换为域名请求，配合 ACL 使用
-- 可通过 `--no-sniff` 关闭
 
 ### 🚦 拥塞控制 (Congestion)
 - 支持 **BBR**（默认）和 **Reno** 两种算法
@@ -143,98 +173,10 @@ chmod +x hy2-onekey.sh
 ### 🔒 mTLS
 - 通过 `clientCA` 配置项支持客户端证书验证
 
-## 快速部署示例
-
-### ACME 自动证书
-
-```bash
-./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --yes
-```
-
-### ACME + Gecko 混淆
-
-```bash
-./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --obfs gecko --yes
-```
-
-### 自有证书 + Salamander 混淆 + 开启嗅探
-
-```bash
-./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --obfs salamander --sniff --yes
-```
-
-### 多用户认证 + 带宽限制
-
-```bash
-./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --auth-type userpass --username user1 --password MyPass123 --bandwidth-up 100 mbps --bandwidth-down 100 mbps --yes
-```
-
-## 文件说明
-
-- `install.sh`：在线安装入口
-- `hy2-onekey.sh`：主安装脚本（v2.0.0）
-- `README.md`：项目说明
-- `README-en.md`：英文说明
-- `INSTALLATION.md`：新手安装说明
-- `EXAMPLES.md`：示例命令
-- `RELEASE.md`：发布说明
-- `DOCS.md`：文档总览
-- `CHANGELOG.md`：更新日志
-
-## 更新日志
-
-- [CHANGELOG.md](CHANGELOG.md)
-
-## 常见问题
-
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
-## FAQ
-
-- [FAQ.md](FAQ.md)
-
-## 支持
-
-- 查看最新版本：<https://github.com/py473/hysteria2-onekey/releases>
-- 排查常见问题：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- 查看 FAQ：[FAQ.md](FAQ.md)
-- 提交新问题：<https://github.com/py473/hysteria2-onekey/issues>
-- 参与贡献：[CONTRIBUTING.md](CONTRIBUTING.md)
-
-## 客户端
-
-以下客户端可用于导入或使用 Hysteria 2 配置。下载地址请以各项目官方页面为准：
-
-- v2rayN：<https://github.com/2dust/v2rayN>
-- Clash.Meta：<https://github.com/MetaCubeX/Clash.Meta>
-- sing-box：<https://github.com/SagerNet/sing-box>
-- Hiddify Next：<https://github.com/hiddify/hiddify-next>
-- NekoBox for Android：<https://github.com/MatsuriDayo/NekoBoxForAndroid>
-- V2Box：<https://apps.apple.com/app/v2box-v2ray-client/id6446814690>
-
-更多支持 Hysteria 2 的第三方应用，请参考官方列表：
-
-- <https://v2.hysteria.network/zh/docs/getting-started/3rd-party-apps/>
-
-## 安全
-
-如果你发现与本项目相关的安全问题，请优先通过 GitHub Security Advisories 或私下联系维护者，不要直接公开敏感细节。
-
-- 安全说明：[SECURITY.md](SECURITY.md)
-
-## 行为准则
-
-- 社区行为准则：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-
-## 常用命令
-
-- 新手安装说明：[INSTALLATION.md](INSTALLATION.md)
-- 示例命令：[EXAMPLES.md](EXAMPLES.md)
-
 ## 注意事项
 
 - 本脚本仅面向 Linux / Unix 服务器，不支持 Windows。
-- Hysteria 2 服务端通常需要放行 `UDP 443`。
+- Hysteria 2 服务端通常需要放行 **UDP 443** 端口。
 - 如果使用 ACME 证书，请确保域名已解析到 VPS。
 - 伪装地址支持直接输入域名，脚本会自动补全 `https://`。
 - 启用混淆后，服务器将不再兼容标准 QUIC/HTTP/3 连接。
