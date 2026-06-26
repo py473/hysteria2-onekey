@@ -399,6 +399,66 @@ EOF
   fi
 }
 
+# ---- 性能优化：QUIC 流控制接收窗口 ----
+build_quic_block() {
+  QUIC_BLOCK=$(cat <<EOF
+quic:
+  initStreamReceiveWindow: 26843545
+  maxStreamReceiveWindow: 26843545
+  initConnReceiveWindow: 67108864
+  maxConnReceiveWindow: 67108864
+EOF
+)
+}
+
+# ---- 性能优化：系统缓冲区大小 (Linux sysctl) ----
+apply_sysctl_tuning() {
+  local rmem=16777216
+  local wmem=16777216
+
+  local current_rmem
+  local current_wmem
+  current_rmem="$(sysctl -n net.core.rmem_max 2>/dev/null || echo "0")"
+  current_wmem="$(sysctl -n net.core.wmem_max 2>/dev/null || echo "0")"
+
+  if [[ "${current_rmem}" -lt "${rmem}" ]]; then
+    sysctl -w net.core.rmem_max="${rmem}" >/dev/null 2>&1
+    success "已设置系统接收缓冲区: ${rmem}"
+  fi
+  if [[ "${current_wmem}" -lt "${wmem}" ]]; then
+    sysctl -w net.core.wmem_max="${wmem}" >/dev/null 2>&1
+    success "已设置系统发送缓冲区: ${wmem}"
+  fi
+
+  # 持久化到 sysctl.conf（仅当未存在时添加）
+  local sysctl_conf="/etc/sysctl.d/99-hysteria.conf"
+  if [[ ! -f "${sysctl_conf}" ]]; then
+    cat >"${sysctl_conf}" <<EOF
+# Hysteria 2 性能优化
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+EOF
+    success "已持久化 sysctl 设置: ${sysctl_conf}"
+  fi
+}
+
+# ---- 性能优化：进程优先级 (systemd drop-in) ----
+apply_systemd_priority() {
+  local dropin_dir="/etc/systemd/system/hysteria-server.service.d"
+  local dropin_file="${dropin_dir}/priority.conf"
+
+  if [[ ! -f "${dropin_file}" ]]; then
+    mkdir -p "${dropin_dir}"
+    cat >"${dropin_file}" <<EOF
+[Service]
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=99
+EOF
+    success "已设置 systemd 实时优先级"
+    systemctl daemon-reload
+  fi
+}
+
 write_config_acme() {
   local domain="$1"
   local email="$2"
@@ -448,6 +508,8 @@ ${OBFS_BLOCK}
 ${SNIFF_BLOCK}
 
 ${MASQUERADE_BLOCK}
+
+${QUIC_BLOCK}
 
 ${speed_test_block}
 EOF
@@ -516,6 +578,8 @@ ${OBFS_BLOCK}
 ${SNIFF_BLOCK}
 
 ${MASQUERADE_BLOCK}
+
+${QUIC_BLOCK}
 
 ${speed_test_block}
 EOF
@@ -636,6 +700,11 @@ deploy_with_config() {
   install_or_upgrade_hy2
 
   mkdir -p /etc/hysteria
+
+  # ---- 性能优化 ----
+  apply_sysctl_tuning
+  apply_systemd_priority
+  build_quic_block
 
   local server_addr
   local sni
