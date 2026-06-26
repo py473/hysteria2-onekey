@@ -58,6 +58,7 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 - 域名：填写你的域名
 - 邮箱：填写你的 ACME 邮箱
 - 伪装地址：可以直接输入 `www.bing.com`
+- 混淆方式：Salamander / Gecko / 不启用（v2.9.2 新增）
 
 ### 5. 安装完成后
 
@@ -65,6 +66,7 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 - `/etc/hysteria/config.yaml`
 - `/root/hy2-v2rayn.txt`
+- `/root/hy2-client.yaml`
 
 ### 6. v2rayN 使用
 
@@ -157,6 +159,7 @@ The script will then ask for:
 - Domain: your server domain
 - Email: your ACME email
 - Masquerade URL: you can enter `www.bing.com`
+- Obfuscation: Salamander / Gecko / Off (new in v2.9.2)
 
 ### 5. After installation
 
@@ -164,6 +167,7 @@ Check the following files:
 
 - `/etc/hysteria/config.yaml`
 - `/root/hy2-v2rayn.txt`
+- `/root/hy2-client.yaml`
 
 ### 6. Use with v2rayN
 

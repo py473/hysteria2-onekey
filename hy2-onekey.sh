@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_NAME="HY2 一键安装脚本（Linux 服务器）"
+SCRIPT_NAME="HY2 一键安装脚本（Linux 服务器）v2.0.0"
 CONFIG_PATH="/etc/hysteria/config.yaml"
 CLIENT_EXAMPLE_PATH="/root/hy2-client.yaml"
 SERVICE_NAME="hysteria-server.service"
@@ -12,6 +12,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 info() { echo -e "${BLUE}[INFO]${NC} $*"; }
@@ -99,6 +100,21 @@ print_usage() {
   --no-masquerade                      关闭伪装
   --insecure                           客户端 TLS 忽略校验，适合自签名证书
   --yes                                直接执行，不再询问确认
+
+高级参数 (v2.9.2+):
+  --obfs salamander|gecko|off          混淆方式（默认 off）
+  --obfs-password PASSWORD             混淆密码
+  --sniff                             启用协议嗅探（默认开启）
+  --no-sniff                           关闭协议嗅探
+  --speed-test                         启用内置测速
+  --auth-type password|userpass        认证类型（默认 password）
+  --username USERNAME                  userpass 认证的用户名
+  --bandwidth-up VALUE                 上行带宽限制（如 100 mbps）
+  --bandwidth-down VALUE               下行带宽限制（如 100 mbps）
+  --congestion bbr|reno                拥塞控制算法（默认 bbr）
+  --bbr-profile standard|conservative|aggressive  BBR 配置文件（默认 standard）
+  --client-ca PATH                     mTLS 客户端 CA 证书路径
+  --sni-guard strict|disable|dns-san   SNI 验证模式（默认 dns-san）
 EOF
 }
 
@@ -240,11 +256,156 @@ prompt_tls_insecure() {
   fi
 }
 
+# ---- v2.9.2 新功能：混淆 (Obfuscation) ----
+build_obfuscation_block() {
+  local obfs_type="$1"
+  local obfs_password="$2"
+
+  if [[ -z "${obfs_type}" || "${obfs_type}" == "off" ]]; then
+    OBFS_BLOCK="# obfuscation 未启用 (v2.9.2 可选)"
+    return
+  fi
+
+  if [[ -z "${obfs_password}" ]]; then
+    obfs_password="$(random_password)"
+    success "已自动生成混淆密码。"
+  fi
+
+  case "${obfs_type}" in
+    salamander)
+      OBFS_BLOCK=$(cat <<EOF
+obfs:
+  type: salamander
+  salamander:
+    password: ${obfs_password}
+EOF
+)
+      ;;
+    gecko)
+      OBFS_BLOCK=$(cat <<EOF
+obfs:
+  type: gecko
+  gecko:
+    password: ${obfs_password}
+    minPacketSize: 512
+    maxPacketSize: 1200
+EOF
+)
+      ;;
+    *)
+      OBFS_BLOCK="# obfuscation 未启用"
+      ;;
+  esac
+}
+
+prompt_obfuscation() {
+  local choice
+  echo
+  echo "请选择混淆方式 v2.9.2："
+  echo "  Salamander: 将每个包伪造成随机字节（兼容 v2）"
+  echo "  Gecko:      在 Salamander 基础上分片 QUIC 握手包（实验性）"
+  echo "  0) 不启用混淆（保持标准 HTTP/3 外观）"
+  echo "  1) Salamander"
+  echo "  2) Gecko（实验性）"
+  read -r -p "请输入选项 [0-2，默认 0]: " choice
+  choice="${choice:-0}"
+
+  case "${choice}" in
+    1) OBFUSCATION_TYPE="salamander" ;;
+    2) OBFUSCATION_TYPE="gecko" ;;
+    *) OBFUSCATION_TYPE="off" ;;
+  esac
+
+  if [[ "${OBFUSCATION_TYPE}" != "off" ]]; then
+    local pwd_input
+    read -r -p "请输入混淆密码（留空自动生成）: " pwd_input
+    OBFUSCATION_PASSWORD="${pwd_input}"
+  fi
+}
+
+# ---- v2.9.2 新功能：协议嗅探 (Sniff) ----
+build_sniff_block() {
+  local enabled="$1"
+  if [[ "${enabled}" == "true" ]]; then
+    SNIFF_BLOCK=$(cat <<EOF
+sniff:
+  enable: true
+  timeout: 2s
+  rewriteDomain: false
+  tcpPorts: 80,443,8000-9000
+  udpPorts: all
+EOF
+)
+  else
+    SNIFF_BLOCK="# sniff 未启用"
+  fi
+}
+
+# ---- v2.9.2 新功能：拥塞控制 (Congestion) ----
+build_congestion_block() {
+  local congestion_type="$1"
+  local bbr_profile="$2"
+
+  if [[ -z "${congestion_type}" ]]; then
+    CONGESTION_BLOCK="# congestion 使用默认 BBR"
+    return
+  fi
+
+  case "${congestion_type}" in
+    bbr)
+      CONGESTION_BLOCK=$(cat <<EOF
+congestion:
+  type: bbr
+  bbrProfile: ${bbr_profile:-standard}
+EOF
+)
+      ;;
+    reno)
+      CONGESTION_BLOCK=$(cat <<EOF
+congestion:
+  type: reno
+EOF
+)
+      ;;
+    *)
+      CONGESTION_BLOCK="# congestion 使用默认 BBR"
+      ;;
+  esac
+}
+
+# ---- v2.9.2 新功能：带宽限制 (Bandwidth) ----
+build_bandwidth_block() {
+  local up="$1"
+  local down="$2"
+  if [[ -n "${up}" || -n "${down}" ]]; then
+    BANDWIDTH_BLOCK=$(cat <<EOF
+bandwidth:
+EOF
+)
+    if [[ -n "${up}" ]]; then
+      BANDWIDTH_BLOCK+=$(cat <<EOF
+  up: ${up}
+EOF
+)
+    fi
+    if [[ -n "${down}" ]]; then
+      BANDWIDTH_BLOCK+=$(cat <<EOF
+  down: ${down}
+EOF
+)
+    fi
+  else
+    BANDWIDTH_BLOCK="# bandwidth 未设置"
+  fi
+}
+
 write_config_acme() {
   local domain="$1"
   local email="$2"
   local port="$3"
   local password="$4"
+  local auth_type="${5:-password}"
+  local username="${6:-}"
 
   cat >"${CONFIG_PATH}" <<EOF
 listen: :${port}
@@ -255,10 +416,32 @@ acme:
   email: ${email}
 
 auth:
-  type: password
+  type: ${auth_type}
+EOF
+  if [[ "${auth_type}" == "userpass" && -n "${username}" ]]; then
+    cat >>"${CONFIG_PATH}" <<EOF
+  userpass:
+    ${username}: ${password}
+EOF
+  else
+    cat >>"${CONFIG_PATH}" <<EOF
   password: ${password}
+EOF
+  fi
+
+  cat >>"${CONFIG_PATH}" <<EOF
+
+${BANDWIDTH_BLOCK}
+
+${CONGESTION_BLOCK}
+
+${OBFS_BLOCK}
+
+${SNIFF_BLOCK}
 
 ${MASQUERADE_BLOCK}
+
+# speedTest: false
 EOF
 }
 
@@ -267,6 +450,10 @@ write_config_cert() {
   local key_path="$2"
   local port="$3"
   local password="$4"
+  local auth_type="${5:-password}"
+  local username="${6:-}"
+  local client_ca="${7:-}"
+  local sni_guard="${8:-dns-san}"
 
   cat >"${CONFIG_PATH}" <<EOF
 listen: :${port}
@@ -274,12 +461,47 @@ listen: :${port}
 tls:
   cert: ${cert_path}
   key: ${key_path}
+EOF
+  if [[ -n "${client_ca}" ]]; then
+    cat >>"${CONFIG_PATH}" <<EOF
+  clientCA: ${client_ca}
+EOF
+  fi
+  if [[ -n "${sni_guard}" ]]; then
+    cat >>"${CONFIG_PATH}" <<EOF
+  sniGuard: ${sni_guard}
+EOF
+  fi
+
+  cat >>"${CONFIG_PATH}" <<EOF
 
 auth:
-  type: password
+  type: ${auth_type}
+EOF
+  if [[ "${auth_type}" == "userpass" && -n "${username}" ]]; then
+    cat >>"${CONFIG_PATH}" <<EOF
+  userpass:
+    ${username}: ${password}
+EOF
+  else
+    cat >>"${CONFIG_PATH}" <<EOF
   password: ${password}
+EOF
+  fi
+
+  cat >>"${CONFIG_PATH}" <<EOF
+
+${BANDWIDTH_BLOCK}
+
+${CONGESTION_BLOCK}
+
+${OBFS_BLOCK}
+
+${SNIFF_BLOCK}
 
 ${MASQUERADE_BLOCK}
+
+# speedTest: false
 EOF
 }
 
@@ -289,14 +511,50 @@ write_client_example() {
   local password="$3"
   local sni="$4"
   local insecure="$5"
+  local obfs_type="${6:-}"
+  local obfs_password="${7:-}"
+  local auth_type="${8:-password}"
+
+  local auth_block
+  if [[ "${auth_type}" == "userpass" ]]; then
+    auth_block="auth_str: ${password}"
+  else
+    auth_block="auth: ${password}"
+  fi
+
+  local obfs_block=""
+  if [[ -n "${obfs_type}" && "${obfs_type}" != "off" ]]; then
+    obfs_block=$(cat <<EOF
+
+obfs:
+  type: ${obfs_type}
+EOF
+)
+    if [[ "${obfs_type}" == "salamander" ]]; then
+      obfs_block+=$(cat <<EOF
+  salamander:
+    password: ${obfs_password}
+EOF
+)
+    elif [[ "${obfs_type}" == "gecko" ]]; then
+      obfs_block+=$(cat <<EOF
+  gecko:
+    password: ${obfs_password}
+    minPacketSize: 512
+    maxPacketSize: 1200
+EOF
+)
+    fi
+  fi
 
   cat >"${CLIENT_EXAMPLE_PATH}" <<EOF
 server: "${server_addr}:${port}"
-auth: ${password}
+${auth_block}
 
 tls:
   sni: ${sni}
   insecure: ${insecure}
+${obfs_block}
 
 socks5:
   listen: 127.0.0.1:1080
@@ -327,6 +585,8 @@ generate_uri() {
   local password="$3"
   local sni="$4"
   local insecure="$5"
+  local obfs_type="${6:-}"
+  local obfs_password="${7:-}"
   local auth_encoded
   local sni_encoded
   local host
@@ -338,6 +598,14 @@ generate_uri() {
   query="sni=${sni_encoded}"
   if [[ "${insecure}" == "true" ]]; then
     query="${query}&insecure=1"
+  fi
+  if [[ -n "${obfs_type}" && "${obfs_type}" != "off" ]]; then
+    query="${query}&obfs=${obfs_type}"
+    if [[ -n "${obfs_password}" ]]; then
+      local obfs_pwd_enc
+      obfs_pwd_enc="$(uri_encode "${obfs_password}")"
+      query="${query}&obfs-password=${obfs_pwd_enc}"
+    fi
   fi
 
   echo "hysteria2://${auth_encoded}@${host}:${port}/?${query}#HY2"
@@ -359,12 +627,46 @@ deploy_with_config() {
   local tls_choice="${HY2_TLS:-1}"
   local listen_port="${HY2_LISTEN_PORT:-443}"
   local auth_password="${HY2_PASSWORD:-}"
+  local auth_type="${HY2_AUTH_TYPE:-password}"
+  local auth_username="${HY2_USERNAME:-}"
 
   if [[ -z "${auth_password}" ]]; then
     auth_password="$(random_password)"
     success "已自动生成认证密码。"
   fi
 
+  # ---- 处理 Obfuscation ----
+  OBFUSCATION_TYPE="${HY2_OBFS:-off}"
+  OBFUSCATION_PASSWORD="${HY2_OBFS_PASSWORD:-}"
+  if [[ "${OBFUSCATION_TYPE}" != "off" && -z "${OBFUSCATION_PASSWORD}" ]]; then
+    OBFUSCATION_PASSWORD="$(random_password)"
+    success "已自动生成混淆密码。"
+  fi
+  build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
+
+  # ---- 处理 Sniff ----
+  local sniff_enabled
+  if [[ "${HY2_SNIFF:-true}" == "true" ]]; then
+    sniff_enabled="true"
+  else
+    sniff_enabled="false"
+  fi
+  build_sniff_block "${sniff_enabled}"
+
+  # ---- 处理 Speed Test ----
+  local speed_test_enabled="${HY2_SPEED_TEST:-false}"
+
+  # ---- 处理 BBR Profile ----
+  local congestion_type="${HY2_CONGESTION:-bbr}"
+  local bbr_profile="${HY2_BBR_PROFILE:-standard}"
+  build_congestion_block "${congestion_type}" "${bbr_profile}"
+
+  # ---- 处理 Bandwidth ----
+  local bw_up="${HY2_BANDWIDTH_UP:-}"
+  local bw_down="${HY2_BANDWIDTH_DOWN:-}"
+  build_bandwidth_block "${bw_up}" "${bw_down}"
+
+  # ---- 处理 Masquerade ----
   if [[ -n "${HY2_MASQUERADE_URL:-}" ]]; then
     set_masquerade_block "${HY2_MASQUERADE_URL}"
   elif [[ "${HY2_NO_MASQUERADE:-false}" == "true" || "${HY2_YES:-false}" == "true" ]]; then
@@ -396,7 +698,13 @@ deploy_with_config() {
       email="$(prompt_required "请输入 ACME 邮箱")"
     fi
 
-    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}"
+    # 交互式确认混淆和嗅探
+    if [[ "${HY2_YES:-false}" != "true" ]]; then
+      prompt_obfuscation
+      build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
+    fi
+
+    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}"
 
     server_addr="${domain}"
     sni="${domain}"
@@ -404,6 +712,8 @@ deploy_with_config() {
   else
     local cert_path="${HY2_CERT:-}"
     local key_path="${HY2_KEY:-}"
+    local client_ca="${HY2_CLIENT_CA:-}"
+    local sni_guard="${HY2_SNI_GUARD:-dns-san}"
 
     if [[ -z "${cert_path}" ]]; then
       if [[ "${HY2_YES:-false}" == "true" ]]; then
@@ -425,7 +735,13 @@ deploy_with_config() {
       exit 1
     fi
 
-    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}"
+    # 交互式确认混淆和嗅探
+    if [[ "${HY2_YES:-false}" != "true" ]]; then
+      prompt_obfuscation
+      build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
+    fi
+
+    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${client_ca}" "${sni_guard}"
 
     server_addr="${HY2_SERVER:-}"
     if [[ -z "${server_addr}" ]]; then
@@ -452,12 +768,13 @@ deploy_with_config() {
     fi
   fi
 
-  chmod 600 "${CONFIG_PATH}"
+  chmod 640 "${CONFIG_PATH}"
+  chown hysteria:hysteria /etc/hysteria/config.yaml 2>/dev/null || true
   restart_service
-  write_client_example "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}"
+  write_client_example "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}" "${auth_type}"
 
   local share_uri
-  share_uri="$(generate_uri "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}")"
+  share_uri="$(generate_uri "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}")"
 
   cat >"/root/hy2-v2rayn.txt" <<EOF
 v2rayN 导入信息
@@ -483,6 +800,16 @@ EOF
   else
     echo "伪装地址: 已关闭"
   fi
+  if [[ "${OBFUSCATION_TYPE}" != "off" ]]; then
+    echo "混淆方式: ${OBFUSCATION_TYPE}"
+    echo "混淆密码: ${OBFUSCATION_PASSWORD}"
+  fi
+  if [[ "${sniff_enabled}" == "true" ]]; then
+    echo "协议嗅探: 已开启"
+  fi
+  if [[ "${speed_test_enabled}" == "true" ]]; then
+    echo "测速功能: 已开启"
+  fi
   echo "分享 URI: ${share_uri}"
   echo "v2rayN 导入文件: /root/hy2-v2rayn.txt"
   echo "v2rayN 使用方式：在 v2rayN 中新增 Hysteria2 节点，或直接粘贴上面的 URI。"
@@ -491,12 +818,13 @@ EOF
   echo "常用命令："
   echo "  systemctl status ${SERVICE_NAME}"
   echo "  journalctl --no-pager -e -u ${SERVICE_NAME}"
+  echo "  hysteria version"
 }
 
 show_menu() {
   echo "=================================================="
   echo "${SCRIPT_NAME}"
-  echo "基于 Hysteria 2 官方文档安装方式（get.hy2.sh）"
+  echo "基于 Hysteria 2 v2.9.2 官方文档安装方式（get.hy2.sh）"
   echo "=================================================="
   echo "1) 一键安装/升级 + 交互式生成配置 + 启动服务"
   echo "2) 仅重启服务"
@@ -578,6 +906,59 @@ main() {
             --yes)
               HY2_YES="true"
               shift 1
+              ;;
+            # ---- v2.9.2 新参数 ----
+            --obfs)
+              HY2_OBFS="${2:-off}"
+              shift 2
+              ;;
+            --obfs-password)
+              HY2_OBFS_PASSWORD="${2:-}"
+              shift 2
+              ;;
+            --sniff)
+              HY2_SNIFF="true"
+              shift 1
+              ;;
+            --no-sniff)
+              HY2_SNIFF="false"
+              shift 1
+              ;;
+            --speed-test)
+              HY2_SPEED_TEST="true"
+              shift 1
+              ;;
+            --auth-type)
+              HY2_AUTH_TYPE="${2:-password}"
+              shift 2
+              ;;
+            --username)
+              HY2_USERNAME="${2:-}"
+              shift 2
+              ;;
+            --bandwidth-up)
+              HY2_BANDWIDTH_UP="${2:-}"
+              shift 2
+              ;;
+            --bandwidth-down)
+              HY2_BANDWIDTH_DOWN="${2:-}"
+              shift 2
+              ;;
+            --congestion)
+              HY2_CONGESTION="${2:-bbr}"
+              shift 2
+              ;;
+            --bbr-profile)
+              HY2_BBR_PROFILE="${2:-standard}"
+              shift 2
+              ;;
+            --client-ca)
+              HY2_CLIENT_CA="${2:-}"
+              shift 2
+              ;;
+            --sni-guard)
+              HY2_SNI_GUARD="${2:-dns-san}"
+              shift 2
               ;;
             *)
               error "未知参数: $1"

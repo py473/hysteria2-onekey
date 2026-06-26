@@ -5,7 +5,7 @@ REPO_URL="https://github.com/py473/hysteria2-onekey"
 REPO_RAW_URL="${REPO_URL}/raw/main/hy2-onekey.sh"
 TMP_SCRIPT="/tmp/hy2-onekey.sh"
 PROJECT_NAME="Hysteria 2 One-Key Installer"
-PROJECT_VERSION="1.0.0"
+PROJECT_VERSION="2.0.0"
 
 cleanup() {
   rm -f "${TMP_SCRIPT}"

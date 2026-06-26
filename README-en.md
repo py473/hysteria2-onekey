@@ -4,9 +4,11 @@
 
 [![Release](https://img.shields.io/github/v/release/py473/hysteria2-onekey)](https://github.com/py473/hysteria2-onekey/releases)
 [![License](https://img.shields.io/github/license/py473/hysteria2-onekey)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Unix-blue)](README-en.md)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Blue)](README-en.md)
 
 This is a Hysteria 2 one-key installer for **Linux / Unix server systems**, designed for common `systemd` server environments.
+
+**Built-in Hysteria 2 version: v2.9.2** (auto-installs latest via official `get.hy2.sh`)
 
 Repository: <https://github.com/py473/hysteria2-onekey>
 
@@ -19,6 +21,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - [Examples](#examples)
 - [Local Run](#local-run)
 - [After Installation](#after-installation)
+- [v2.9.2 New Features](#v292-new-features)
 - [Files](#files)
 - [Changelog](#changelog)
 - [Troubleshooting](#troubleshooting)
@@ -41,11 +44,17 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 
 ## Features
 
-- One-click install / upgrade for Hysteria 2
+- One-click install / upgrade for Hysteria 2 (v2.9.2)
 - Interactive server configuration generation
 - ACME automatic certificate support
-- Custom certificate support
+- Custom certificate + mTLS support
 - Custom masquerade URL support
+- **Salamander / Gecko obfuscation** (new in v2.9.2)
+- **Protocol sniffing** (HTTP/TLS/QUIC)
+- **Congestion control** (BBR / Reno)
+- **Server bandwidth limiting**
+- **Built-in speed test server**
+- **userpass multi-user authentication**
 - v2rayN-compatible node output
 - QR code output for easy import
 - Parameter-based deployment support
@@ -97,6 +106,41 @@ The script usually generates the following files on the server:
 - `/root/hy2-v2rayn.txt`: v2rayN import information
 - `/root/hy2-client.yaml`: client example configuration
 
+## v2.9.2 New Features
+
+### 🔐 Security Fixes
+- Fixed UDP packet bypass of ACL
+- Fixed potential OOM from incomplete/oversized HTTP requests
+- Fixed ACL bypass via trailing dots in domain names (e.g., `example.com.`)
+
+### 🆕 Obfuscation
+- **Salamander**: scrambles every packet into seemingly random bytes
+- **Gecko (experimental)**: fragments QUIC handshake packets into randomly-sized, randomly-padded datagrams
+- Enabling obfuscation makes the server incompatible with standard QUIC/HTTP/3
+
+### 🔍 Protocol Sniffing
+- Supports HTTP, TLS (HTTPS), and QUIC (HTTP/3) protocol detection
+- Converts IP requests to domain requests for ACL compatibility
+- Can be disabled with `--no-sniff`
+
+### 🚦 Congestion Control
+- Supports **BBR** (default) and **Reno** algorithms
+- BBR profiles: `standard`, `conservative`, `aggressive`
+
+### 📊 Bandwidth Limiting
+- Per-client upload/download bandwidth rate limiting on the server side
+- Supported units: bps, kbps, mbps, gbps, tbps
+
+### ⚡ Speed Test
+- Built-in speed test server for client download/upload testing
+
+### 👥 Multi-User Authentication
+- `password`: single password (default)
+- `userpass`: username-password pair authentication
+
+### 🔒 mTLS
+- Client certificate verification via `clientCA` configuration option
+
 ## Quick Deploy Examples
 
 ### ACME Automatic Certificate
@@ -105,22 +149,35 @@ The script usually generates the following files on the server:
 ./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --yes
 ```
 
-### Custom Certificate
+### ACME + Gecko Obfuscation
 
 ```bash
-./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --yes
+./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --obfs gecko --yes
+```
+
+### Custom Certificate + Salamander Obfuscation + Sniffing
+
+```bash
+./hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --sni your.domain.com --obfs salamander --sniff --yes
+```
+
+### Multi-User + Bandwidth Limiting
+
+```bash
+./hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --auth-type userpass --username user1 --password MyPass123 --bandwidth-up 100 mbps --bandwidth-down 100 mbps --yes
 ```
 
 ## Files
 
 - `install.sh`: online installer entry
-- `hy2-onekey.sh`: main installer script
+- `hy2-onekey.sh`: main installer script (v2.0.0)
 - `README.md`: Chinese project overview
 - `README-en.md`: English project overview
 - `INSTALLATION.md`: beginner installation guide
 - `EXAMPLES.md`: example commands
 - `RELEASE.md`: release notes
 - `DOCS.md`: documentation overview
+- `CHANGELOG.md`: changelog
 
 ## Changelog
 
@@ -178,6 +235,7 @@ If you discover a security issue related to this project, please report it via G
 - Hysteria 2 servers usually require UDP 443 to be open.
 - If you use ACME certificates, make sure your domain resolves to the VPS.
 - Masquerade URLs can be entered as plain domains; the script will automatically prepend `https://`.
+- Enabling obfuscation makes the server incompatible with standard QUIC/HTTP/3 connections.
 - If you use UFW, install `ufw` first and allow both `443/udp` and `443/tcp`.
 
 ## License
