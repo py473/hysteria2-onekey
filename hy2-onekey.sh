@@ -406,6 +406,14 @@ write_config_acme() {
   local password="$4"
   local auth_type="${5:-password}"
   local username="${6:-}"
+  local speed_test="${7:-false}"
+
+  local speed_test_block
+  if [[ "${speed_test}" == "true" ]]; then
+    speed_test_block="# speedTest: true  # 已启用内置测速"
+  else
+    speed_test_block="# speedTest: false"
+  fi
 
   cat >"${CONFIG_PATH}" <<EOF
 listen: :${port}
@@ -441,7 +449,7 @@ ${SNIFF_BLOCK}
 
 ${MASQUERADE_BLOCK}
 
-# speedTest: false
+${speed_test_block}
 EOF
 }
 
@@ -454,6 +462,7 @@ write_config_cert() {
   local username="${6:-}"
   local client_ca="${7:-}"
   local sni_guard="${8:-dns-san}"
+  local speed_test="${9:-false}"
 
   cat >"${CONFIG_PATH}" <<EOF
 listen: :${port}
@@ -489,6 +498,13 @@ EOF
 EOF
   fi
 
+  local speed_test_block
+  if [[ "${speed_test}" == "true" ]]; then
+    speed_test_block="# speedTest: true  # 已启用内置测速"
+  else
+    speed_test_block="# speedTest: false"
+  fi
+
   cat >>"${CONFIG_PATH}" <<EOF
 
 ${BANDWIDTH_BLOCK}
@@ -501,7 +517,7 @@ ${SNIFF_BLOCK}
 
 ${MASQUERADE_BLOCK}
 
-# speedTest: false
+${speed_test_block}
 EOF
 }
 
@@ -704,7 +720,7 @@ deploy_with_config() {
       build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
     fi
 
-    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}"
+    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${speed_test_enabled}"
 
     server_addr="${domain}"
     sni="${domain}"
@@ -741,7 +757,7 @@ deploy_with_config() {
       build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
     fi
 
-    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${client_ca}" "${sni_guard}"
+    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${client_ca}" "${sni_guard}" "${speed_test_enabled}"
 
     server_addr="${HY2_SERVER:-}"
     if [[ -z "${server_addr}" ]]; then
