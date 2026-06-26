@@ -35,7 +35,7 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 ## Features
 
 - One-click install / upgrade for Hysteria 2 (v2.9.2)
-- Interactive server configuration generation
+- Interactive server configuration generation (full prompts for all features)
 - ACME automatic certificate support
 - Custom certificate + mTLS support
 - Custom masquerade URL support
@@ -44,6 +44,8 @@ Repository: <https://github.com/py473/hysteria2-onekey>
 - **Congestion control** (BBR / Reno)
 - **Server bandwidth limiting**
 - **Built-in speed test server**
+- **Port Hopping** — auto-setup nftables/iptables rules
+- **Environment variables** support (log level, disable update check)
 - **userpass multi-user authentication**
 - v2rayN-compatible node output
 - QR code output for easy import
@@ -68,7 +70,7 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 New to this? Check out the detailed tutorial:
 
-📘 [**GUIDE.md �?Hysteria 2 Deployment Guide (Chinese)**](GUIDE.md)
+📘 [**GUIDE.md — Hysteria 2 Deployment Guide (Chinese)**](GUIDE.md)
 
 Covers: VPS preparation, SSH connection, interactive deployment walkthrough, CLI mode, v2rayN setup, daily management, troubleshooting.
 
@@ -95,7 +97,10 @@ chmod +x /tmp/hy2-onekey.sh
 /tmp/hy2-onekey.sh --deploy --tls cert --cert /path/to/fullchain.pem --key /path/to/privkey.pem --server your.domain.com --yes
 
 # Multi-user + bandwidth limit
-/tmp/hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --auth-type userpass --username user1 --password MyPass123 --bandwidth-up 100 mbps --bandwidth-down 100 mbps --yes
+/tmp/hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --auth-type userpass --username user1 --password *** --bandwidth-up 100 mbps --bandwidth-down 100 mbps --yes
+
+# Port hopping
+/tmp/hy2-onekey.sh --deploy --tls acme --domain your.domain.com --email your@email.com --port-hopping 20000-50000 --yes
 ```
 
 ### Other Commands
@@ -125,35 +130,39 @@ Files generated on the server:
 
 ## v2.9.2 New Features
 
-### 🔐 Security Fixes
+### Security Fixes
 - Fixed UDP packet bypass of ACL
 - Fixed potential OOM from incomplete/oversized HTTP requests
 - Fixed ACL bypass via trailing dots in domain names
 
-### 🆕 Obfuscation
+### Obfuscation
 - **Salamander**: scrambles every packet into seemingly random bytes
 - **Gecko (experimental)**: fragments QUIC handshake packets into randomly-sized datagrams
-- Enabling obfuscation makes the server incompatible with standard QUIC/HTTP/3
 
-### 🔍 Protocol Sniffing
+### Protocol Sniffing
 - Supports HTTP, TLS (HTTPS), and QUIC (HTTP/3) protocol detection
 
-### 🚦 Congestion Control
+### Congestion Control
 - Supports **BBR** (default) and **Reno** algorithms
 - BBR profiles: `standard`, `conservative`, `aggressive`
 
-### 📊 Bandwidth Limiting
+### Bandwidth Limiting
 - Per-client upload/download bandwidth rate limiting
 
-### �?Speed Test
+### Speed Test
 - Built-in speed test server for client download/upload testing
 
-### 👥 Multi-User Authentication
+### Multi-User Authentication
 - `password`: single password (default)
 - `userpass`: username-password pair authentication
 
-### 🔒 mTLS
+### mTLS
 - Client certificate verification via `clientCA` configuration option
+
+### Port Hopping
+- Bypass carrier-level single-port UDP throttling/blocking
+- Auto-setup nftables / iptables redirect rules
+- Client config includes `transport.udp.hopInterval`
 
 ## Notes
 

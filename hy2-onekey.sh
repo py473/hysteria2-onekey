@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_NAME="HY2 一键安装脚本（Linux 服务器）v2.1.0"
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/hy2-onekey.sh"
 CONFIG_PATH="/etc/hysteria/config.yaml"
 CLIENT_EXAMPLE_PATH="/root/hy2-client.yaml"
 SERVICE_NAME="hysteria-server.service"
@@ -46,7 +47,11 @@ random_password() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 24 | tr -d '=+/\n' | cut -c1-20
   else
+    set +o pipefail
     tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20
+    local _rc=$?
+    set -o pipefail
+    return $_rc
   fi
 }
 
@@ -145,6 +150,9 @@ print_usage() {
   --port-hopping RANGE                 端口跳跃范围（如 20000-50000）
   --log-level debug|info|warn|error    日志级别（默认 info）
   --disable-update-check               关闭启动时的版本更新检查
+  --sub-urls                          显示订阅 HTTP URL
+  --gen-subs                           从现有配置重新生成订阅文件（密码不变）
+  --sub-port PORT                     订阅 HTTP 服务端口（默认 18989）
 EOF
 }
 
@@ -216,7 +224,151 @@ remove_hy2() {
   # 清理端口跳跃残留
   if command -v nft >/dev/null 2>&1; then
     nft delete table inet hysteria_porthopping 2>/dev/null || true
+  nft delete table inet hysteria_ph 2>/dev/null || true
   fi
+  if command -v iptables >/dev/null 2>&1; then
+    iptables -t nat -F PREROUTING 2>/dev/null || true
+    iptables -t nat -X PREROUTING 2>/dev/null || true
+  fi
+  # 清理订阅 HTTP 服务
+  stop_subscription_service
+  # 清理快捷命令
+  rm -f /usr/local/bin/hy2 2>/dev/null || true
+}
+
+# ---- 快捷命令 ----
+setup_symlink() {
+  local script_path="$1"
+  if [[ -f "${script_path}" ]]; then
+    ln -sf "${script_path}" /usr/local/bin/hy2
+    chmod +x /usr/local/bin/hy2
+  fi
+}
+
+# ---- 订阅 HTTP 服务 ----
+SUBS_SERVICE_NAME="hysteria-subscription.service"
+SUBS_PORT="${HY2_SUBSCRIPTION_PORT:-18989}"
+SUBS_DIR="/root"
+
+setup_subscription_service() {
+  local port="$1"
+  local dir="$2"
+
+  # 创建 systemd 服务文件
+  cat >"/etc/systemd/system/${SUBS_SERVICE_NAME}" <<UNIT
+[Unit]
+Description=Hysteria 2 订阅 HTTP 服务 (hy2-onekey)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m http.server ${port} --directory ${dir}
+Restart=on-failure
+RestartSec=5
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+  systemctl daemon-reload
+  systemctl enable --now "${SUBS_SERVICE_NAME}" 2>/dev/null || {
+    warn "订阅 HTTP 服务启动失败，请手动检查: journalctl -u ${SUBS_SERVICE_NAME}"
+    return 1
+  }
+
+  if systemctl is-active --quiet "${SUBS_SERVICE_NAME}"; then
+    success "订阅 HTTP 服务已启动 (端口 ${port})"
+  fi
+}
+
+stop_subscription_service() {
+  if systemctl is-enabled --quiet "${SUBS_SERVICE_NAME}" 2>/dev/null; then
+    systemctl disable --now "${SUBS_SERVICE_NAME}" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${SUBS_SERVICE_NAME}" 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+    info "订阅 HTTP 服务已停止并移除。"
+  fi
+}
+
+# ---- 多客户端订阅链接生成 ----
+generate_subscriptions() {
+  local server_addr="$1"
+  local port="$2"
+  local password="$3"
+  local sni="$4"
+  local insecure="$5"
+  local obfs_type="${6:-}"
+  local obfs_password="${7:-}"
+  local auth_type="${8:-}"
+  local port_hopping="${9:-}"
+
+  local uri
+  uri="$(generate_uri "${server_addr}" "${port}" "${password}" "${sni}" "${insecure}" "${obfs_type}" "${obfs_password}" "${port_hopping}")"
+
+  # ph_uri 已弃用（v2rayN 不支持 URI 端口范围），不再生成端口跳跃 URI
+
+  # ===== v2rayN / v2rayNG =====
+  # 生成两个文件：
+  #   hy2-v2rayn.txt              -> 纯 URI（供剪贴板/扫码直接导入）
+  #   hy2-v2rayn-instructions.txt -> 含注释说明（端口跳跃配置指导）
+  if [[ -n "${port_hopping}" ]]; then
+    printf '%s\n' "${uri}" >"/root/hy2-v2rayn.txt"
+    cat >"/root/hy2-v2rayn-instructions.txt" <<SUBEOF
+# v2rayN / v2rayNG 端口跳跃配置指导
+# ===== 步骤 =====
+# 1. 复制下方 URI 到 v2rayN 导入（端口 ${port}）
+# 2. 右键新节点 -> 编辑 -> 端口：将 ${port} 改为 ${port_hopping}
+# 3. 在「自定义配置」中添加：
+# {
+#   "transport": {
+#     "udp": {
+#       "hopInterval": "30s"
+#     }
+#   }
+# }
+# =====
+${uri}
+SUBEOF
+  else
+    printf '%s\n' "${uri}" >"/root/hy2-v2rayn.txt"
+    cat >"/root/hy2-v2rayn-instructions.txt" <<SUBEOF
+# v2rayN / v2rayNG 订阅
+# 使用方法：复制下方 URI 到 v2rayN -> 服务器 -> 从剪贴板导入（Ctrl+V）
+${uri}
+SUBEOF
+  fi
+
+
+  local obfs_yaml=""
+  if [[ -n "${obfs_type}" && "${obfs_type}" != "off" ]]; then
+    obfs_yaml=$'
+    obfs: '"${obfs_type}"
+    if [[ -n "${obfs_password}" ]]; then
+      obfs_yaml+=$'
+    obfs-password: '"${obfs_password}"
+    fi
+  fi
+
+  local insecure_yaml=""
+  if [[ "${insecure}" == "true" ]]; then
+    insecure_yaml=$'
+    skip-cert-verify: true'
+  fi
+
+  chmod 600 /root/hy2-v2rayn.txt 2>/dev/null || true
+  : # chmod for subscription files (v2rayn/instructions handled above)
+
+  # 保存订阅文件列表（供菜单使用）
+  SUBS_FILES="/root/hy2-v2rayn.txt /root/hy2-v2rayn-instructions.txt"
+
+  echo ""
+  info "已生成订阅文件："
+  echo "  v2rayN / v2rayNG:             /root/hy2-v2rayn.txt"
+  echo "  v2rayN 配置指导:              /root/hy2-v2rayn-instructions.txt"
 }
 
 build_masquerade_config() {
@@ -469,21 +621,14 @@ build_bandwidth_block() {
   local up="$1"
   local down="$2"
   if [[ -n "${up}" || -n "${down}" ]]; then
-    BANDWIDTH_BLOCK=$(cat <<EOF
-bandwidth:
-EOF
-)
+    BANDWIDTH_BLOCK="bandwidth:"
     if [[ -n "${up}" ]]; then
-      BANDWIDTH_BLOCK+=$(cat <<EOF
-  up: ${up}
-EOF
-)
+      BANDWIDTH_BLOCK+=$'
+  up: '"${up}"
     fi
     if [[ -n "${down}" ]]; then
-      BANDWIDTH_BLOCK+=$(cat <<EOF
-  down: ${down}
-EOF
-)
+      BANDWIDTH_BLOCK+=$'
+  down: '"${down}"
     fi
   else
     BANDWIDTH_BLOCK="# bandwidth 未设置"
@@ -563,9 +708,7 @@ apply_port_hopping() {
 
   # 自动检测 Firewall 后端
   if command -v nft >/dev/null 2>&1; then
-    info "使用 nftables 设置端口跳跃规则..."
-    nft add table inet hysteria_porthopping 2>/dev/null || true
-    nft add chain inet hysteria_porthopping prerouting { type nat hook prerouting priority dstnat\; policy accept\; } 2>/dev/null || true
+    info "使用 nftables 设置端口转发规则..."
 
     # 找出默认网卡
     local iface
@@ -574,11 +717,30 @@ apply_port_hopping() {
       iface="eth0"
     fi
 
-    nft add rule inet hysteria_porthopping prerouting iifname "${iface}" udp dport "${port_range}" counter redirect to :"${listen_port}" 2>/dev/null || {
-      warn "nftables 规则添加失败，请手动设置端口跳跃："
-      warn "nft add rule inet hysteria_porthopping prerouting iifname ${iface} udp dport ${port_range} counter redirect to :${listen_port}"
+    # 先清理旧规则（以 hysteria_ph_ 开头），避免每次部署重复添加
+    # 清理旧规则
+    nft delete table inet hysteria_ph 2>/dev/null || true
+
+    # 从跳跃范围中提取基础端口（hysteria 实际监听的端口）
+    local base_port
+    base_port="${port_range%%-*}"
+    base_port="${base_port%%,*}"
+    base_port="${base_port:-${listen_port}}"
+
+    # 新建 inet 表（同时处理 IPv4 + IPv6）
+    nft add table inet hysteria_ph
+    nft add chain inet hysteria_ph prerouting { type nat hook prerouting priority dstnat\; policy accept\; }
+
+    # 规则1: 443 -> :base_port（供 sing-box / v2rayN 使用主端口）
+    nft add rule inet hysteria_ph prerouting iifname "${iface}" udp dport 443 counter redirect to :"${base_port}" 2>/dev/null || true
+
+    # 规则2: 端口跳跃范围 -> :base_port
+    nft add rule inet hysteria_ph prerouting iifname "${iface}" udp dport "${port_range}" counter redirect to :"${base_port}" 2>/dev/null && {
+      success "nftables 规则已更新: 443 + ${port_range} -> :${base_port}"
+    } || {
+      warn "nftables 规则添加失败，请手动设置："
+      warn "nft add rule inet hysteria_ph prerouting iifname ${iface} udp dport ${port_range} counter redirect to :${base_port}"
     }
-    success "已添加 nftables 端口跳跃规则: ${port_range} -> :${listen_port}"
   elif command -v iptables >/dev/null 2>&1; then
     warn "未检测到 nftables，使用 iptables（性能不如 nftables）。"
     local iface
@@ -586,9 +748,12 @@ apply_port_hopping() {
     if [[ -z "${iface}" ]]; then
       iface="eth0"
     fi
-    iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${port_range}" -j REDIRECT --to-ports "${listen_port}" 2>/dev/null || warn "iptables 规则添加失败（可能已在规则中）。"
+    # iptables 端口范围使用冒号分隔（如 20000:50000）
+    local ipt_range="${port_range//-/:}"
+    echo "${ipt_range}" | grep -q ':' || ipt_range="${port_range}"
+    iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${ipt_range}" -j REDIRECT --to-ports "${listen_port}" 2>/dev/null || warn "iptables 规则添加失败（可能已在规则中）。"
     if command -v ip6tables >/dev/null 2>&1; then
-      ip6tables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${port_range}" -j REDIRECT --to-ports "${listen_port}" 2>/dev/null || true
+      ip6tables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${ipt_range}" -j REDIRECT --to-ports "${listen_port}" 2>/dev/null || true
     fi
     success "已添加 iptables 端口跳跃规则: ${port_range} -> :${listen_port}"
   else
@@ -610,51 +775,79 @@ EOF
 )
 }
 
-# ---- 性能优化：系统缓冲区大小 (Linux sysctl) ----
+# ---- 性能优化：系统网络参数 (sysctl) ----
 apply_sysctl_tuning() {
   local rmem=16777216
   local wmem=16777216
+  local sysctl_conf="/etc/sysctl.d/99-hysteria-network.conf"
 
-  local current_rmem
-  local current_wmem
+  # 动态设置缓冲区
+  local current_rmem current_wmem
   current_rmem="$(sysctl -n net.core.rmem_max 2>/dev/null || echo "0")"
   current_wmem="$(sysctl -n net.core.wmem_max 2>/dev/null || echo "0")"
-
   if [[ "${current_rmem}" -lt "${rmem}" ]]; then
     sysctl -w net.core.rmem_max="${rmem}" >/dev/null 2>&1
-    success "已设置系统接收缓冲区: ${rmem}"
   fi
   if [[ "${current_wmem}" -lt "${wmem}" ]]; then
     sysctl -w net.core.wmem_max="${wmem}" >/dev/null 2>&1
-    success "已设置系统发送缓冲区: ${wmem}"
   fi
 
-  local sysctl_conf="/etc/sysctl.d/99-hysteria.conf"
-  if [[ ! -f "${sysctl_conf}" ]]; then
-    cat >"${sysctl_conf}" <<EOF
-# Hysteria 2 性能优化
+  # 加载 BBR 模块
+  modprobe tcp_bbr 2>/dev/null || true
+  echo "tcp_bbr" >/etc/modules-load.d/tcp_bbr.conf 2>/dev/null || true
+
+  # 写入 sysctl 永久配置（覆盖旧文件）
+  cat >"${sysctl_conf}" <<NETEOF
+# Hysteria 2 全面网络性能优化
+# QUIC/UDP 缓冲区上限
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
-EOF
-    success "已持久化 sysctl 设置: ${sysctl_conf}"
-  fi
+# BBR 拥塞控制（加速 VPS 回源 TCP，不影响 QUIC）
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+# TCP 快速打开（降低回源延迟）
+net.ipv4.tcp_fastopen = 3
+# TCP 缓冲区调大
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+# MTU 探测（减少 UDP 分片）
+net.ipv4.tcp_mtu_probing = 1
+NETEOF
+  sysctl -p "${sysctl_conf}" >/dev/null 2>&1
+
+  # 删除旧配置文件
+  rm -f /etc/sysctl.d/99-hysteria.conf 2>/dev/null || true
+
+  success "全网络优化已应用 (BBR + Buffer + FastOpen + MTU探测)"
 }
 
 # ---- 性能优化：进程优先级 (systemd drop-in) ----
 apply_systemd_priority() {
   local dropin_dir="/etc/systemd/system/hysteria-server.service.d"
-  local dropin_file="${dropin_dir}/priority.conf"
+  mkdir -p "${dropin_dir}"
 
-  if [[ ! -f "${dropin_file}" ]]; then
-    mkdir -p "${dropin_dir}"
-    cat >"${dropin_file}" <<EOF
+  # 优先级配置
+  local priority_file="${dropin_dir}/priority.conf"
+  if [[ ! -f "${priority_file}" ]]; then
+    cat >"${priority_file}" <<EOF
 [Service]
 CPUSchedulingPolicy=rr
 CPUSchedulingPriority=99
 EOF
-    success "已设置 systemd 实时优先级"
-    systemctl daemon-reload
   fi
+
+  # 并发连接数限制
+  local limits_file="${dropin_dir}/limits.conf"
+  if [[ ! -f "${limits_file}" ]]; then
+    cat >"${limits_file}" <<EOF
+[Service]
+LimitNOFILE=1048576
+LimitNPROC=1048576
+EOF
+  fi
+
+  systemctl daemon-reload
+  success "已设置 systemd 进程优先级 + 连接数上限 (1048576)"
 }
 
 # ---- 环境变量注入 ---- 
@@ -664,8 +857,11 @@ apply_env_settings() {
   local dropin_dir="/etc/systemd/system/hysteria-server.service.d"
   local env_file="${dropin_dir}/environment.conf"
 
-  if [[ -z "${log_level}" && -z "${disable_update}" ]]; then
-    return
+  if [[ -z "${log_level}" ]]; then
+    log_level="warn"
+  fi
+  if [[ -z "${disable_update}" ]]; then
+    :
   fi
 
   mkdir -p "${dropin_dir}"
@@ -877,26 +1073,24 @@ write_client_example() {
 
   local obfs_block=""
   if [[ -n "${obfs_type}" && "${obfs_type}" != "off" ]]; then
-    obfs_block=$(cat <<EOF
-
-obfs:
-  type: ${obfs_type}
-EOF
-)
+    obfs_block=$'
+'"obfs:"
+    obfs_block+=$'
+'"  type: ${obfs_type}"
     if [[ "${obfs_type}" == "salamander" ]]; then
-      obfs_block+=$(cat <<EOF
-  salamander:
-    password: ${obfs_password}
-EOF
-)
+      obfs_block+=$'
+'"  salamander:"
+      obfs_block+=$'
+'"    password: ${obfs_password}"
     elif [[ "${obfs_type}" == "gecko" ]]; then
-      obfs_block+=$(cat <<EOF
-  gecko:
-    password: ${obfs_password}
-    minPacketSize: 512
-    maxPacketSize: 1200
-EOF
-)
+      obfs_block+=$'
+'"  gecko:"
+      obfs_block+=$'
+'"    password: ${obfs_password}"
+      obfs_block+=$'
+'"    minPacketSize: 512"
+      obfs_block+=$'
+'"    maxPacketSize: 1200"
     fi
   fi
 
@@ -911,13 +1105,12 @@ EOF
   # 客户端传输配置：端口跳跃需添加 transport.udp.hopInterval
   local transport_block=""
   if [[ -n "${port_hopping}" ]]; then
-    transport_block=$(cat <<EOF
-
-transport:
-  udp:
-    hopInterval: 30s
-EOF
-)
+    transport_block=$'
+'"transport:"
+    transport_block+=$'
+'"  udp:"
+    transport_block+=$'
+'"    hopInterval: 30s"
   fi
 
   cat >"${CLIENT_EXAMPLE_PATH}" <<EOF
@@ -983,14 +1176,8 @@ generate_uri() {
     fi
   fi
 
-  # URI 中的端口：如果启用了端口跳跃，写入跳跃范围（v2rayN 可能不支持，仅记录文档）
-  local uri_port="${port}"
-  if [[ -n "${port_hopping}" ]]; then
-    # v2rayN URI 不支持端口跳跃范围，但我们在备注里说明
-    uri_port="${port}"
-  fi
-
-  echo "hysteria2://${auth_encoded}@${host}:${uri_port}/?${query}#HY2"
+  # URI 始终使用主端口（443），端口跳跃由 nftables 服务端处理
+  echo "hysteria2://${auth_encoded}@${host}:${port}/?${query}#HY2"
 }
 
 # =========================================================
@@ -1024,9 +1211,27 @@ deploy_with_config() {
   local auth_type="${HY2_AUTH_TYPE:-password}"
   local auth_username="${HY2_USERNAME:-}"
 
+  # 复用现有密码（保持已有客户端不断连）
+  if [[ -z "${auth_password}" && -f "${CONFIG_PATH}" ]]; then
+    local existing_pw
+    existing_pw="$(grep -A2 'auth:' "${CONFIG_PATH}" 2>/dev/null | grep 'password:' | head -1 | sed 's/.*password: *//;s/^ *//;s/ *$//;s/"//g' || true)"
+    if [[ -n "${existing_pw}" ]]; then
+      auth_password="${existing_pw}"
+      info "已复用现有密码，已有客户端不受影响。"
+    fi
+  fi
   if [[ -z "${auth_password}" ]]; then
     auth_password="$(random_password)"
     success "已自动生成认证密码。"
+  fi
+
+  # 复用现有混淆密码
+  if [[ -z "${OBFUSCATION_PASSWORD:-}" && -f "${CONFIG_PATH}" ]]; then
+    local existing_opw
+    existing_opw="$(grep -A1 'salamander:' "${CONFIG_PATH}" 2>/dev/null | grep 'password:' | head -1 | sed 's/.*password: *//;s/^ *//;s/ *$//;s/"//g' || true)"
+    if [[ -n "${existing_opw}" ]]; then
+      OBFUSCATION_PASSWORD="${existing_opw}"
+    fi
   fi
 
   # ---- 初始化全局变量 ----
@@ -1042,6 +1247,33 @@ deploy_with_config() {
 
   # ---- 交互式配置（非 --yes 模式） ----
   if [[ "${HY2_YES:-false}" != "true" ]]; then
+    # TLS 方式选择
+    echo
+    echo "请选择 TLS 证书方式："
+    echo "  1) ACME 自动证书（推荐，需域名）"
+    echo "  2) 自有证书"
+    local tls_choice_input
+    read -r -p "请输入选项 [1-2，默认 1]: " tls_choice_input
+    tls_choice_input="${tls_choice_input:-1}"
+    if [[ "${tls_choice_input}" == "1" ]]; then
+      tls_choice="1"
+    else
+      tls_choice="2"
+    fi
+
+    # 认证方式选择
+    echo
+    echo "请选择认证方式："
+    echo "  1) 单密码认证（简单，推荐）"
+    echo "  2) 用户名-密码认证（多用户）"
+    local auth_choice
+    read -r -p "请输入选项 [1-2，默认 1]: " auth_choice
+    auth_choice="${auth_choice:-1}"
+    if [[ "${auth_choice}" == "2" ]]; then
+      auth_type="userpass"
+      auth_username="$(prompt_required "请输入用户名")"
+    fi
+
     prompt_obfuscation
     prompt_sniff
     prompt_speed_test
@@ -1172,15 +1404,11 @@ deploy_with_config() {
   local share_uri
   share_uri="$(generate_uri "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}" "${port_hopping}")"
 
-  cat >"/root/hy2-v2rayn.txt" <<EOF
-v2rayN 导入信息
-================
-协议：Hysteria2
-导入方式：直接粘贴下面的 URI 到 v2rayN
+  # ---- 设置快捷命令 ----
+  setup_symlink "${SCRIPT_PATH}"
 
-${share_uri}
-EOF
-  chmod 600 "/root/hy2-v2rayn.txt"
+  # ---- 生成多客户端订阅文件 ----
+  generate_subscriptions     "${server_addr}"     "${listen_port}"     "${auth_password}"     "${sni}"     "${TLS_INSECURE}"     "${OBFUSCATION_TYPE}"     "${OBFUSCATION_PASSWORD}"     "${auth_type}"     "${port_hopping}"
 
   # ---- 输出总结 ----
   echo
@@ -1223,11 +1451,29 @@ EOF
     echo "端口跳跃: ${port_hopping}"
   fi
   echo "分享 URI: ${share_uri}"
-  echo "v2rayN 导入文件: /root/hy2-v2rayn.txt"
-  echo "v2rayN 使用方式：在 v2rayN 中新增 Hysteria2 节点，或直接粘贴上面的 URI。"
+  echo ""
+  echo "--- 订阅文件 ---"
+  echo "  v2rayN / v2rayNG:                 /root/hy2-v2rayn.txt"
+  echo "  v2rayN 配置指导:              /root/hy2-v2rayn-instructions.txt"
+  echo "  URI 直连:                         ${share_uri}"
+  echo "--- 快捷命令 ---"
+  echo "  hy2     （输入 hy2 即可调出菜单，需重新登录终端生效）"
   print_qr_code "${share_uri}"
+  # ---- 启动订阅 HTTP 服务 ----
+  setup_subscription_service "${SUBS_PORT}" "${SUBS_DIR}"
+
+  # ---- 订阅 URL ----
+  local server_ip
+  server_ip="$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 icanhazip.com 2>/dev/null || echo "${server_addr}")"
+  local base_url="http://${server_ip}:${SUBS_PORT}"
+
+  echo "--------------------------------------------------"
+  echo "订阅服务："
+  echo "  v2rayN / v2rayNG:             ${base_url}/hy2-v2rayn.txt"
   echo "--------------------------------------------------"
   echo "常用命令："
+  echo "  hy2                 # 调出互动菜单（重新登录终端或运行 source /etc/profile）"
+  echo "  hy2 --sub-urls       # 显示所有订阅 URL"
   echo "  systemctl status ${SERVICE_NAME}"
   echo "  journalctl --no-pager -e -u ${SERVICE_NAME}"
   echo "  hysteria version"
@@ -1242,6 +1488,8 @@ show_menu() {
   echo "1) 一键安装/升级 + 交互式生成配置 + 启动服务"
   echo "2) 仅重启服务"
   echo "3) 卸载 Hysteria 2"
+  echo "4) 显示订阅链接 / 快捷命令信息"
+  echo "5) 重新生成订阅文件（基于当前配置）"
   echo "0) 退出"
   echo
 }
@@ -1262,6 +1510,55 @@ main() {
         ;;
       --remove)
         remove_hy2
+        exit 0
+        ;;
+      --gen-subs)
+        # 从现有配置提取参数，重新生成订阅文件（不更换密码）
+        if [[ ! -f "${CONFIG_PATH}" ]]; then
+          error "Hysteria 2 配置不存在，请先 --deploy。"
+          exit 1
+        fi
+        echo "正在从现有配置重新生成订阅文件..."
+        local _gsrv _gpw _gsni _gobfs_t _gobfs_pw _gport _gph
+        _gsrv="${HY2_DOMAIN:-${HY2_SERVER:-}}"
+        if [[ -z "${_gsrv}" ]]; then
+          _gsrv="$(grep 'domains:' -A1 "${CONFIG_PATH}" 2>/dev/null | tail -1 | tr -d ' -')"
+        fi
+        if [[ -z "${_gsrv}" ]]; then
+          _gsrv="$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")"
+        fi
+        _gpw="$(grep -A2 'auth:' "${CONFIG_PATH}" 2>/dev/null | grep 'password:' | head -1 | sed 's/.*password: *//;s/^ *//;s/ *$//;s/"//g')" || true
+        _gsni="${HY2_SNI:-${_gsrv}}"
+        _gobfs_t="$(grep -A2 'obfs:' "${CONFIG_PATH}" 2>/dev/null | grep 'type:' | head -1 | tr -d ' ' | cut -d: -f2)" || true
+        _gph="$(grep -oP '[0-9]+-[0-9]+' "${CONFIG_PATH}" 2>/dev/null | head -1 || true)"
+        _gobfs_pw="$(grep -A1 'salamander:' "${CONFIG_PATH}" 2>/dev/null | grep 'password:' | head -1 | sed 's/.*password: *//;s/^ *//;s/ *$//;s/"//g')" || true
+        if [[ -n "${_gph}" ]]; then
+          _gport="443"
+        else
+          _gport="$(sed -n 's/listen: :\([0-9]*\).*/\1/p' "${CONFIG_PATH}" 2>/dev/null)"
+          _gport="${_gport:-443}"
+        fi
+        if [[ -z "${_gpw}" ]]; then
+          error "无法从配置中提取密码。"
+          exit 1
+        fi
+        generate_subscriptions "${_gsrv}" "${_gport}" "${_gpw}" "${_gsni}" "false" "${_gobfs_t}" "${_gobfs_pw}" "password" "${_gph}"
+        echo ""
+        success "订阅文件已重新生成（密码不变，客户端不受影响）。"
+        systemctl restart "${SUBS_SERVICE_NAME}" 2>/dev/null || true
+        exit 0
+        ;;
+      --sub-urls|--show-subs)
+        echo "=================================================="
+        echo "                订阅 URL"
+        echo "=================================================="
+        local server_ip
+        server_ip="$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 icanhazip.com 2>/dev/null || curl -s --max-time 3 http://checkip.amazonaws.com/ 2>/dev/null || echo "你的服务器IP")"
+        local base_url="http://${server_ip}:${SUBS_PORT}"
+        echo ""
+      
+        echo "  v2rayN / v2rayNG:         ${base_url}/hy2-v2rayn.txt"
+        echo ""
         exit 0
         ;;
       --deploy)
@@ -1418,7 +1715,7 @@ main() {
 
   local choice
   show_menu
-  read -r -p "请选择操作 [0-3，默认 1]: " choice
+  read -r -p "请选择操作 [0-4，默认 1]: " choice
   choice="${choice:-1}"
 
   case "${choice}" in
@@ -1431,10 +1728,75 @@ main() {
     3)
       remove_hy2
       ;;
-    0)
-      info "已退出。"
+    4)
+      local _srv4
+      _srv4="$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 icanhazip.com 2>/dev/null || echo "获取IP失败")"
+      local _base4="http://${_srv4}:${SUBS_PORT}"
+      echo "=================================================="
+      echo "                订阅链接 & 快捷命令"
+      echo "=================================================="
+      echo ""
+      echo "--- HTTP 订阅 URL（导入客户端） ---"
+      
+      echo "  v2rayN / v2rayNG:         ${_base4}/hy2-v2rayn.txt"
+    
+      echo ""
+
+      if [[ -f /root/hy2-v2rayn.txt ]]; then
+        echo "--- v2rayN / v2rayNG (URI) ---"
+        cat /root/hy2-v2rayn.txt
+        echo ""
+      fi
+      if [[ -f /root/hy2-v2rayn-instructions.txt ]]; then
+        echo "--- v2rayN 配置指导 ---"
+        cat /root/hy2-v2rayn-instructions.txt
+        echo ""
+      fi
+
+      echo "--- 快捷命令 ---"
+      echo "  hy2                     # 调出菜单"
+      echo "  hy2 --gen-subs          # 重新生成订阅文件（密码不变）"
+      echo "  hy2 --sub-urls          # 显示 HTTP 订阅 URL"
+      echo ""
       ;;
-    *)
+    5)
+      if [[ ! -f "${CONFIG_PATH}" ]]; then
+        error "Hysteria 2 配置不存在，请先部署。"
+        break
+      fi
+      echo "=================================================="
+      echo "          重新生成订阅文件"
+      echo "=================================================="
+      local _srv5="${HY2_DOMAIN:-${HY2_SERVER:-}}"
+      if [[ -z "${_srv5}" ]]; then
+        _srv5="$(grep 'domains:' -A1 "${CONFIG_PATH}" 2>/dev/null | tail -1 | tr -d ' -')"
+      fi
+      if [[ -z "${_srv5}" ]]; then
+        _srv5="$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 icanhazip.com 2>/dev/null || echo "YOUR_IP")"
+      fi
+      local _pw5 _sni5 _obfs_t5 _obfs_pw5 _port5 _ph5
+      _pw5="$(grep -A2 'auth:' "${CONFIG_PATH}" 2>/dev/null | grep 'password:' | head -1 | sed 's/.*password: *//;s/^ *//;s/ *$//;s/"//g')" || true
+      _sni5="${HY2_SNI:-${_srv5}}"
+      _obfs_t5="$(grep -A2 'obfs:' "${CONFIG_PATH}" 2>/dev/null | grep 'type:' | head -1 | tr -d ' ' | cut -d: -f2)" || true
+      _ph5="$(grep -oP '[0-9]+-[0-9]+' "${CONFIG_PATH}" 2>/dev/null | head -1 || true)"
+      _obfs_pw5="$(grep -A1 'salamander:' "${CONFIG_PATH}" 2>/dev/null | grep 'password:' | head -1 | sed 's/.*password: *//;s/^ *//;s/ *$//;s/"//g')" || true
+      if [[ -n "${_ph5}" ]]; then
+        _port5="443"
+      else
+        _port5="$(sed -n 's/listen: :\([0-9]*\).*/\1/p' "${CONFIG_PATH}" 2>/dev/null)"
+        _port5="${_port5:-443}"
+      fi
+      if [[ -z "${_pw5}" ]]; then
+        error "无法从配置提取密码。"
+        break
+      fi
+      generate_subscriptions "${_srv5}" "${_port5}" "${_pw5}" "${_sni5}" "false" "${_obfs_t5}" "${_obfs_pw5}" "password" "${_ph5}"
+      echo ""
+      success "订阅文件已重新生成（密码不变，客户端不受影响）。"
+      systemctl restart "${SUBS_SERVICE_NAME}" 2>/dev/null || true
+      ;;
+
+    0)
       error "无效选项。"
       exit 1
       ;;
