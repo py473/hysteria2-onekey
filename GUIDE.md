@@ -63,7 +63,7 @@ ufw reload
 
 在你的云服务商控制台找到：
 
-- **公网 IP**（比如：`107.173.204.24`）
+- **公网 IP**（比如：`203.0.113.1`）
 - **用户名**（通常是 `root`）
 - **密码** 或 **SSH 密钥**
 
@@ -152,7 +152,7 @@ HY2 一键安装脚本（Linux 服务器）v2.0.0
 请输入你的域名（需已解析到 VPS）:
 ```
 
-输入你的域名，比如 `sk888.645215.xyz`，回车。
+输入你的域名，比如 `vpn.yourdomain.com`，回车。
 
 #### 步骤③：输入邮箱
 
@@ -160,7 +160,7 @@ HY2 一键安装脚本（Linux 服务器）v2.0.0
 请输入 ACME 邮箱:
 ```
 
-输入你的邮箱，比如 `admin@645215.xyz`，回车。
+输入你的邮箱，比如 `admin@yourdomain.com`，回车。
 
 #### 步骤④：选择混淆方式（可选）
 
@@ -228,11 +228,11 @@ HY2 一键安装脚本（Linux 服务器）v2.0.0
 服务配置文件: /etc/hysteria/config.yaml
 客户端示例文件: /root/hy2-client.yaml
 认证密码: xxxxxx
-连接地址: sk888.645215.xyz:443
-SNI: sk888.645215.xyz
+连接地址: vpn.yourdomain.com:443
+SNI: vpn.yourdomain.com
 TLS 校验: false
 伪装地址: https://www.bing.com
-分享 URI: hysteria2://xxxxxx@sk888.645215.xyz:443/?sni=xxx#HY2
+分享 URI: hysteria2://xxxxxx@vpn.yourdomain.com:443/?sni=xxx#HY2
 v2rayN 导入文件: /root/hy2-v2rayn.txt
 ```
 
@@ -263,8 +263,8 @@ chmod +x /tmp/hy2-onekey.sh
 |------|------|------|
 | `--deploy` | 直接部署模式 | 必须 |
 | `--tls acme` | ACME 自动证书 | `acme` 或 `cert` |
-| `--domain` | 你的域名 | `sk888.645215.xyz` |
-| `--email` | ACME 邮箱 | `admin@645215.xyz` |
+| `--domain` | 你的域名 | `vpn.yourdomain.com` |
+| `--email` | ACME 邮箱 | `admin@yourdomain.com` |
 | `--password` | 指定密码（不指定则自动生成） | `MyPass123` |
 | `--listen-port` | 监听端口 | `443` |
 | `--yes` | 跳过确认，直接执行 | 无参数值 |
@@ -283,10 +283,10 @@ chmod +x /tmp/hy2-onekey.sh
 
 ```bash
 # 最简部署（ACME + 自动密码 + 伪装）
-/tmp/hy2-onekey.sh --deploy --tls acme --domain sk888.645215.xyz --email admin@645215.xyz --yes
+/tmp/hy2-onekey.sh --deploy --tls acme --domain vpn.yourdomain.com --email admin@yourdomain.com --yes
 
 # 带 Gecko 混淆 + 开启嗅探 + 开启测速
-/tmp/hy2-onekey.sh --deploy --tls acme --domain sk888.645215.xyz --email admin@645215.xyz --obfs gecko --sniff --speed-test --yes
+/tmp/hy2-onekey.sh --deploy --tls acme --domain vpn.yourdomain.com --email admin@yourdomain.com --obfs gecko --sniff --speed-test --yes
 
 # 自有证书 + 无伪装 + 忽略证书校验
 /tmp/hy2-onekey.sh --deploy --tls cert --cert /path/to/cert.pem --key /path/to/key.pem --server your.domain.com --insecure --no-masquerade --yes
@@ -314,7 +314,7 @@ v2rayN V7.22.7+ 自带 `sing-box` 核心，可以直接用它来跑 Hysteria2。
 
 拷贝 VPS 上生成的分享 URI：
 ```
-hysteria2://xxxxxxxx@sk888.645215.xyz:443/?sni=sk888.645215.xyz#HY2
+hysteria2://xxxxxxxx@vpn.yourdomain.com:443/?sni=vpn.yourdomain.com#HY2
 ```
 
 然后在 v2rayN 中：
@@ -326,10 +326,10 @@ hysteria2://xxxxxxxx@sk888.645215.xyz:443/?sni=sk888.645215.xyz#HY2
 在 v2rayN 中按 `Ctrl+N` 或点右下角「+」号：
 1. 服务器类型选择：**Hysteria2**
 2. 别名：`HY2`
-3. 地址：`sk888.645215.xyz`
+3. 地址：`vpn.yourdomain.com`
 4. 端口：`443`
 5. 密码：粘贴 VPS 脚本输出的密码
-6. SNI：`sk888.645215.xyz`
+6. SNI：`vpn.yourdomain.com`
 7. 传输安全：`tls`
 8. 点「确认」
 
