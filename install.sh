@@ -13,7 +13,7 @@ cleanup() {
 
 require_linux() {
   if [[ "$(uname -s)" != "Linux" ]]; then
-    echo "此安装脚本仅支持 Linux / Unix 服务器系统，不支持 Windows。" >&2
+    echo "此安装脚本仅支持 Linux / Unix 服务器系统，不支�?Windows�? >&2
     exit 1
   fi
 }
@@ -32,7 +32,7 @@ download_script() {
   elif command -v wget >/dev/null 2>&1; then
     wget -qO "${TMP_SCRIPT}" "${REPO_RAW_URL}"
   else
-    echo "未找到 curl 或 wget，请先安装其中一个再重试。" >&2
+    echo "未找�?curl �?wget，请先安装其中一个再重试�? >&2
     exit 1
   fi
 }

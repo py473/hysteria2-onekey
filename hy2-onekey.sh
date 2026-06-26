@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_NAME="HY2 一键安装脚本（Linux 服务器）v2.0.0"
+SCRIPT_NAME="HY2 一键安装脚本（Linux 服务器）v2.1.0"
 CONFIG_PATH="/etc/hysteria/config.yaml"
 CLIENT_EXAMPLE_PATH="/root/hy2-client.yaml"
 SERVICE_NAME="hysteria-server.service"
@@ -75,6 +75,33 @@ prompt_required() {
   done
 }
 
+# ---- 通用：验证端口范围格式 ----
+validate_port_range() {
+  local input="$1"
+  # 支持格式：80,443,20000-50000
+  if [[ -z "${input}" ]]; then
+    return 1
+  fi
+  while IFS=',' read -ra parts; do
+    for part in "${parts[@]}"; do
+      part="${part// /}"
+      if [[ "${part}" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+        if [[ "${BASH_REMATCH[1]}" -lt 1 || "${BASH_REMATCH[1]}" -gt 65535 || \
+              "${BASH_REMATCH[2]}" -lt 1 || "${BASH_REMATCH[2]}" -gt 65535 ]]; then
+          return 1
+        fi
+      elif [[ "${part}" =~ ^[0-9]+$ ]]; then
+        if [[ "${part}" -lt 1 || "${part}" -gt 65535 ]]; then
+          return 1
+        fi
+      else
+        return 1
+      fi
+    done
+  done <<< "${input}"
+  return 0
+}
+
 print_usage() {
   cat <<'EOF'
 用法:
@@ -86,7 +113,7 @@ print_usage() {
 适用环境:
   Ubuntu / Debian / Rocky Linux / CentOS Stream / Fedora 等常见 systemd 服务器系统
 
-部署参数:
+基础部署参数:
   --tls acme|cert                      TLS 方式，默认 acme
   --domain DOMAIN                      ACME 域名
   --email EMAIL                        ACME 邮箱
@@ -101,7 +128,7 @@ print_usage() {
   --insecure                           客户端 TLS 忽略校验，适合自签名证书
   --yes                                直接执行，不再询问确认
 
-高级参数 (v2.9.2+):
+高级功能参数:
   --obfs salamander|gecko|off          混淆方式（默认 off）
   --obfs-password PASSWORD             混淆密码
   --sniff                             启用协议嗅探（默认开启）
@@ -115,6 +142,9 @@ print_usage() {
   --bbr-profile standard|conservative|aggressive  BBR 配置文件（默认 standard）
   --client-ca PATH                     mTLS 客户端 CA 证书路径
   --sni-guard strict|disable|dns-san   SNI 验证模式（默认 dns-san）
+  --port-hopping RANGE                 端口跳跃范围（如 20000-50000）
+  --log-level debug|info|warn|error    日志级别（默认 info）
+  --disable-update-check               关闭启动时的版本更新检查
 EOF
 }
 
@@ -183,6 +213,10 @@ remove_hy2() {
   fi
   bash <(curl -fsSL https://get.hy2.sh/) --remove
   success "卸载完成。"
+  # 清理端口跳跃残留
+  if command -v nft >/dev/null 2>&1; then
+    nft delete table inet hysteria_porthopping 2>/dev/null || true
+  fi
 }
 
 build_masquerade_config() {
@@ -256,13 +290,17 @@ prompt_tls_insecure() {
   fi
 }
 
-# ---- v2.9.2 新功能：混淆 (Obfuscation) ----
+# =========================================================
+# 配置块构建函数
+# =========================================================
+
+# ---- 混淆 (Obfuscation) ----
 build_obfuscation_block() {
   local obfs_type="$1"
   local obfs_password="$2"
 
   if [[ -z "${obfs_type}" || "${obfs_type}" == "off" ]]; then
-    OBFS_BLOCK="# obfuscation 未启用 (v2.9.2 可选)"
+    OBFS_BLOCK="# obfuscation 未启用"
     return
   fi
 
@@ -323,7 +361,7 @@ prompt_obfuscation() {
   fi
 }
 
-# ---- v2.9.2 新功能：协议嗅探 (Sniff) ----
+# ---- 协议嗅探 (Sniff) ----
 build_sniff_block() {
   local enabled="$1"
   if [[ "${enabled}" == "true" ]]; then
@@ -341,7 +379,23 @@ EOF
   fi
 }
 
-# ---- v2.9.2 新功能：拥塞控制 (Congestion) ----
+prompt_sniff() {
+  local choice
+  echo
+  echo "是否启用协议嗅探 (Sniff)？"
+  echo "  Sniff 可将 IP 请求自动转为域名请求，配合 ACL 使用"
+  echo "  1) 启用（推荐）"
+  echo "  2) 关闭"
+  read -r -p "请输入选项 [1-2，默认 1]: " choice
+  choice="${choice:-1}"
+  if [[ "${choice}" == "1" ]]; then
+    prompt_sniff_result="true"
+  else
+    prompt_sniff_result="false"
+  fi
+}
+
+# ---- 拥塞控制 (Congestion) ----
 build_congestion_block() {
   local congestion_type="$1"
   local bbr_profile="$2"
@@ -373,7 +427,44 @@ EOF
   esac
 }
 
-# ---- v2.9.2 新功能：带宽限制 (Bandwidth) ----
+prompt_congestion() {
+  local choice
+  echo
+  echo "请选择拥塞控制算法："
+  echo "  1) BBR（默认，高性能）"
+  echo "  2) Reno（传统算法，兼容性更好）"
+  echo "  0) 使用 Hysteria 2 默认值"
+  read -r -p "请输入选项 [0-2，默认 1]: " choice
+  choice="${choice:-1}"
+
+  case "${choice}" in
+    2)
+      prompt_congestion_result="reno"
+      prompt_bbr_profile_result=""
+      ;;
+    0)
+      prompt_congestion_result=""
+      prompt_bbr_profile_result=""
+      ;;
+    *)
+      prompt_congestion_result="bbr"
+      local bbr_choice
+      echo "  BBR 配置文件："
+      echo "    1) standard（标准）"
+      echo "    2) conservative（保守）"
+      echo "    3) aggressive（激进）"
+      read -r -p "  请输入选项 [1-3，默认 1]: " bbr_choice
+      bbr_choice="${bbr_choice:-1}"
+      case "${bbr_choice}" in
+        2) prompt_bbr_profile_result="conservative" ;;
+        3) prompt_bbr_profile_result="aggressive" ;;
+        *) prompt_bbr_profile_result="standard" ;;
+      esac
+      ;;
+  esac
+}
+
+# ---- 带宽限制 (Bandwidth) ----
 build_bandwidth_block() {
   local up="$1"
   local down="$2"
@@ -396,6 +487,114 @@ EOF
     fi
   else
     BANDWIDTH_BLOCK="# bandwidth 未设置"
+  fi
+}
+
+prompt_bandwidth() {
+  local choice
+  echo
+  echo "是否要设置服务端带宽限制？"
+  echo "  1) 是（设置每客户端的上下行速率上限）"
+  echo "  0) 否（不限速）"
+  read -r -p "请输入选项 [0-1，默认 0]: " choice
+  choice="${choice:-0}"
+
+  if [[ "${choice}" == "1" ]]; then
+    bw_up=$(prompt_default "上行带宽限制（如 100 mbps，留空不限制）" "")
+    bw_down=$(prompt_default "下行带宽限制（如 100 mbps，留空不限制）" "")
+    prompt_bandwidth_up_result="${bw_up}"
+    prompt_bandwidth_down_result="${bw_down}"
+  else
+    prompt_bandwidth_up_result=""
+    prompt_bandwidth_down_result=""
+  fi
+}
+
+# ---- 测速服务器 (Speed Test) ----
+prompt_speed_test() {
+  local choice
+  echo
+  echo "是否启用内置测速服务器 (Speed Test)？"
+  echo "  开启后客户端可用 hysteria speedtest 测试速度"
+  echo "  1) 启用"
+  echo "  0) 关闭（默认）"
+  read -r -p "请输入选项 [0-1，默认 0]: " choice
+  choice="${choice:-0}"
+  if [[ "${choice}" == "1" ]]; then
+    prompt_speed_test_result="true"
+  else
+    prompt_speed_test_result="false"
+  fi
+}
+
+# ---- 端口跳跃 (Port Hopping) ----
+prompt_port_hopping() {
+  local choice
+  echo
+  echo "是否启用端口跳跃 (Port Hopping)？"
+  echo "  端口跳跃可绕过运营商对单个 UDP 端口的限速/封锁"
+  echo "  1) 启用（输入范围，如 20000-50000）"
+  echo "  0) 关闭（默认）"
+  read -r -p "请输入选项 [0-1，默认 0]: " choice
+  choice="${choice:-0}"
+
+  if [[ "${choice}" == "1" ]]; then
+    while true; do
+      read -r -p "请输入端口跳跃范围（如 20000-50000，支持逗号组合如 10000,20000-50000,60000）: " range
+      if validate_port_range "${range}"; then
+        prompt_port_hopping_result="${range}"
+        break
+      else
+        warn "端口范围格式不正确，请重新输入（1-65535）。"
+      fi
+    done
+  else
+    prompt_port_hopping_result=""
+  fi
+}
+
+# ---- 端口跳跃：写入 nftables 规则 ---- 
+apply_port_hopping() {
+  local port_range="$1"
+  local listen_port="$2"
+  if [[ -z "${port_range}" ]]; then
+    return
+  fi
+
+  # 自动检测 Firewall 后端
+  if command -v nft >/dev/null 2>&1; then
+    info "使用 nftables 设置端口跳跃规则..."
+    nft add table inet hysteria_porthopping 2>/dev/null || true
+    nft add chain inet hysteria_porthopping prerouting { type nat hook prerouting priority dstnat\; policy accept\; } 2>/dev/null || true
+
+    # 找出默认网卡
+    local iface
+    iface="$(ip route get 1.1.1.1 2>/dev/null | awk '{print $5; exit}')"
+    if [[ -z "${iface}" ]]; then
+      iface="eth0"
+    fi
+
+    nft add rule inet hysteria_porthopping prerouting iifname "${iface}" udp dport "${port_range}" counter redirect to :"${listen_port}" 2>/dev/null || {
+      warn "nftables 规则添加失败，请手动设置端口跳跃："
+      warn "nft add rule inet hysteria_porthopping prerouting iifname ${iface} udp dport ${port_range} counter redirect to :${listen_port}"
+    }
+    success "已添加 nftables 端口跳跃规则: ${port_range} -> :${listen_port}"
+  elif command -v iptables >/dev/null 2>&1; then
+    warn "未检测到 nftables，使用 iptables（性能不如 nftables）。"
+    local iface
+    iface="$(ip route get 1.1.1.1 2>/dev/null | awk '{print $5; exit}')"
+    if [[ -z "${iface}" ]]; then
+      iface="eth0"
+    fi
+    iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${port_range}" -j REDIRECT --to-ports "${listen_port}" 2>/dev/null || warn "iptables 规则添加失败（可能已在规则中）。"
+    if command -v ip6tables >/dev/null 2>&1; then
+      ip6tables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${port_range}" -j REDIRECT --to-ports "${listen_port}" 2>/dev/null || true
+    fi
+    success "已添加 iptables 端口跳跃规则: ${port_range} -> :${listen_port}"
+  else
+    warn "未检测到 nftables 或 iptables，端口跳跃规则无法自动设置。"
+    warn "请手动执行以下命令（替换 eth0 为你的网卡名）："
+    warn "  iptables -t nat -A PREROUTING -i eth0 -p udp --dport ${port_range} -j REDIRECT --to-ports ${listen_port}"
   fi
 }
 
@@ -430,7 +629,6 @@ apply_sysctl_tuning() {
     success "已设置系统发送缓冲区: ${wmem}"
   fi
 
-  # 持久化到 sysctl.conf（仅当未存在时添加）
   local sysctl_conf="/etc/sysctl.d/99-hysteria.conf"
   if [[ ! -f "${sysctl_conf}" ]]; then
     cat >"${sysctl_conf}" <<EOF
@@ -459,6 +657,62 @@ EOF
   fi
 }
 
+# ---- 环境变量注入 ---- 
+apply_env_settings() {
+  local log_level="$1"
+  local disable_update="$2"
+  local dropin_dir="/etc/systemd/system/hysteria-server.service.d"
+  local env_file="${dropin_dir}/environment.conf"
+
+  if [[ -z "${log_level}" && -z "${disable_update}" ]]; then
+    return
+  fi
+
+  mkdir -p "${dropin_dir}"
+  local env_line="Environment="
+  local has_content=false
+
+  if [[ -n "${log_level}" ]]; then
+    env_line+="HYSTERIA_LOG_LEVEL=${log_level}"
+    has_content=true
+  fi
+  if [[ -n "${disable_update}" ]]; then
+    if [[ "${has_content}" == "true" ]]; then
+      env_line+=" "
+    fi
+    env_line+="HYSTERIA_DISABLE_UPDATE_CHECK=1"
+    has_content=true
+  fi
+
+  if [[ "${has_content}" == "true" ]]; then
+    local existing
+    if [[ -f "${env_file}" ]]; then
+      existing="$(cat "${env_file}")"
+    else
+      existing=""
+    fi
+
+    if [[ "${existing}" != *"${env_line}"* ]]; then
+      # 追加到现有或新建
+      if [[ -n "${existing}" ]]; then
+        # 如果已存在 [Service]，在其后添加
+        echo "${env_line}" >>"${env_file}"
+      else
+        cat >"${env_file}" <<EOF
+[Service]
+${env_line}
+EOF
+      fi
+      success "已设置环境变量: ${env_line}"
+      systemctl daemon-reload
+    fi
+  fi
+}
+
+# =========================================================
+# 配置写入函数
+# =========================================================
+
 write_config_acme() {
   local domain="$1"
   local email="$2"
@@ -467,16 +721,25 @@ write_config_acme() {
   local auth_type="${5:-password}"
   local username="${6:-}"
   local speed_test="${7:-false}"
+  local port_hopping="${8:-}"
 
   local speed_test_block
   if [[ "${speed_test}" == "true" ]]; then
-    speed_test_block="# speedTest: true  # 已启用内置测速"
+    speed_test_block="speedTest: true"
   else
     speed_test_block="# speedTest: false"
   fi
 
+  local listen_value
+  if [[ -n "${port_hopping}" ]]; then
+    listen_value=":${port_hopping}"
+    info "端口跳跃已启用，监听端口范围: ${port_hopping}"
+  else
+    listen_value=":${port}"
+  fi
+
   cat >"${CONFIG_PATH}" <<EOF
-listen: :${port}
+listen: ${listen_value}
 
 acme:
   domains:
@@ -525,9 +788,25 @@ write_config_cert() {
   local client_ca="${7:-}"
   local sni_guard="${8:-dns-san}"
   local speed_test="${9:-false}"
+  local port_hopping="${10:-}"
+
+  local speed_test_block
+  if [[ "${speed_test}" == "true" ]]; then
+    speed_test_block="speedTest: true"
+  else
+    speed_test_block="# speedTest: false"
+  fi
+
+  local listen_value
+  if [[ -n "${port_hopping}" ]]; then
+    listen_value=":${port_hopping}"
+    info "端口跳跃已启用，监听端口范围: ${port_hopping}"
+  else
+    listen_value=":${port}"
+  fi
 
   cat >"${CONFIG_PATH}" <<EOF
-listen: :${port}
+listen: ${listen_value}
 
 tls:
   cert: ${cert_path}
@@ -560,13 +839,6 @@ EOF
 EOF
   fi
 
-  local speed_test_block
-  if [[ "${speed_test}" == "true" ]]; then
-    speed_test_block="# speedTest: true  # 已启用内置测速"
-  else
-    speed_test_block="# speedTest: false"
-  fi
-
   cat >>"${CONFIG_PATH}" <<EOF
 
 ${BANDWIDTH_BLOCK}
@@ -594,6 +866,7 @@ write_client_example() {
   local obfs_type="${6:-}"
   local obfs_password="${7:-}"
   local auth_type="${8:-password}"
+  local port_hopping="${9:-}"
 
   local auth_block
   if [[ "${auth_type}" == "userpass" ]]; then
@@ -627,15 +900,35 @@ EOF
     fi
   fi
 
+  # 客户端连接地址：如果启用了端口跳跃，使用端口范围
+  local server_addr_line
+  if [[ -n "${port_hopping}" ]]; then
+    server_addr_line="\"${server_addr}:${port_hopping}\""
+  else
+    server_addr_line="\"${server_addr}:${port}\""
+  fi
+
+  # 客户端传输配置：端口跳跃需添加 transport.udp.hopInterval
+  local transport_block=""
+  if [[ -n "${port_hopping}" ]]; then
+    transport_block=$(cat <<EOF
+
+transport:
+  udp:
+    hopInterval: 30s
+EOF
+)
+  fi
+
   cat >"${CLIENT_EXAMPLE_PATH}" <<EOF
-server: "${server_addr}:${port}"
+server: ${server_addr_line}
 ${auth_block}
 
 tls:
   sni: ${sni}
   insecure: ${insecure}
 ${obfs_block}
-
+${transport_block}
 socks5:
   listen: 127.0.0.1:1080
 
@@ -667,6 +960,8 @@ generate_uri() {
   local insecure="$5"
   local obfs_type="${6:-}"
   local obfs_password="${7:-}"
+  local port_hopping="${8:-}"
+
   local auth_encoded
   local sni_encoded
   local host
@@ -688,8 +983,19 @@ generate_uri() {
     fi
   fi
 
-  echo "hysteria2://${auth_encoded}@${host}:${port}/?${query}#HY2"
+  # URI 中的端口：如果启用了端口跳跃，写入跳跃范围（v2rayN 可能不支持，仅记录文档）
+  local uri_port="${port}"
+  if [[ -n "${port_hopping}" ]]; then
+    # v2rayN URI 不支持端口跳跃范围，但我们在备注里说明
+    uri_port="${port}"
+  fi
+
+  echo "hysteria2://${auth_encoded}@${host}:${uri_port}/?${query}#HY2"
 }
+
+# =========================================================
+# 主部署逻辑
+# =========================================================
 
 deploy_with_config() {
   require_cmd curl
@@ -706,6 +1012,9 @@ deploy_with_config() {
   apply_systemd_priority
   build_quic_block
 
+  # ---- 环境变量设置 ----
+  apply_env_settings "${HY2_LOG_LEVEL:-}" "${HY2_DISABLE_UPDATE_CHECK:-}"
+
   local server_addr
   local sni
   local TLS_INSECURE="false"
@@ -720,36 +1029,37 @@ deploy_with_config() {
     success "已自动生成认证密码。"
   fi
 
-  # ---- 处理 Obfuscation ----
+  # ---- 初始化全局变量 ----
   OBFUSCATION_TYPE="${HY2_OBFS:-off}"
   OBFUSCATION_PASSWORD="${HY2_OBFS_PASSWORD:-}"
+  prompt_sniff_result="${HY2_SNIFF:-true}"
+  prompt_speed_test_result="${HY2_SPEED_TEST:-false}"
+  prompt_congestion_result="${HY2_CONGESTION:-bbr}"
+  prompt_bbr_profile_result="${HY2_BBR_PROFILE:-standard}"
+  prompt_bandwidth_up_result="${HY2_BANDWIDTH_UP:-}"
+  prompt_bandwidth_down_result="${HY2_BANDWIDTH_DOWN:-}"
+  prompt_port_hopping_result="${HY2_PORT_HOPPING:-}"
+
+  # ---- 交互式配置（非 --yes 模式） ----
+  if [[ "${HY2_YES:-false}" != "true" ]]; then
+    prompt_obfuscation
+    prompt_sniff
+    prompt_speed_test
+    prompt_congestion
+    prompt_bandwidth
+    prompt_port_hopping
+  fi
+
+  # ---- 构建所有配置块 ----
   if [[ "${OBFUSCATION_TYPE}" != "off" && -z "${OBFUSCATION_PASSWORD}" ]]; then
     OBFUSCATION_PASSWORD="$(random_password)"
     success "已自动生成混淆密码。"
   fi
   build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
 
-  # ---- 处理 Sniff ----
-  local sniff_enabled
-  if [[ "${HY2_SNIFF:-true}" == "true" ]]; then
-    sniff_enabled="true"
-  else
-    sniff_enabled="false"
-  fi
-  build_sniff_block "${sniff_enabled}"
-
-  # ---- 处理 Speed Test ----
-  local speed_test_enabled="${HY2_SPEED_TEST:-false}"
-
-  # ---- 处理 BBR Profile ----
-  local congestion_type="${HY2_CONGESTION:-bbr}"
-  local bbr_profile="${HY2_BBR_PROFILE:-standard}"
-  build_congestion_block "${congestion_type}" "${bbr_profile}"
-
-  # ---- 处理 Bandwidth ----
-  local bw_up="${HY2_BANDWIDTH_UP:-}"
-  local bw_down="${HY2_BANDWIDTH_DOWN:-}"
-  build_bandwidth_block "${bw_up}" "${bw_down}"
+  build_sniff_block "${prompt_sniff_result}"
+  build_congestion_block "${prompt_congestion_result}" "${prompt_bbr_profile_result}"
+  build_bandwidth_block "${prompt_bandwidth_up_result}" "${prompt_bandwidth_down_result}"
 
   # ---- 处理 Masquerade ----
   if [[ -n "${HY2_MASQUERADE_URL:-}" ]]; then
@@ -764,6 +1074,13 @@ deploy_with_config() {
     TLS_INSECURE="true"
   fi
 
+  # ---- 端口跳跃 ----
+  local port_hopping="${prompt_port_hopping_result}"
+  if [[ -n "${port_hopping}" ]]; then
+    apply_port_hopping "${port_hopping}" "${listen_port}"
+  fi
+
+  # ---- TLS 选择 ----
   if [[ "${tls_choice}" == "1" ]]; then
     local domain="${HY2_DOMAIN:-}"
     local email="${HY2_EMAIL:-}"
@@ -783,13 +1100,7 @@ deploy_with_config() {
       email="$(prompt_required "请输入 ACME 邮箱")"
     fi
 
-    # 交互式确认混淆和嗅探
-    if [[ "${HY2_YES:-false}" != "true" ]]; then
-      prompt_obfuscation
-      build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
-    fi
-
-    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${speed_test_enabled}"
+    write_config_acme "${domain}" "${email}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${prompt_speed_test_result}" "${port_hopping}"
 
     server_addr="${domain}"
     sni="${domain}"
@@ -820,13 +1131,7 @@ deploy_with_config() {
       exit 1
     fi
 
-    # 交互式确认混淆和嗅探
-    if [[ "${HY2_YES:-false}" != "true" ]]; then
-      prompt_obfuscation
-      build_obfuscation_block "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}"
-    fi
-
-    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${client_ca}" "${sni_guard}" "${speed_test_enabled}"
+    write_config_cert "${cert_path}" "${key_path}" "${listen_port}" "${auth_password}" "${auth_type}" "${auth_username}" "${client_ca}" "${sni_guard}" "${prompt_speed_test_result}" "${port_hopping}"
 
     server_addr="${HY2_SERVER:-}"
     if [[ -z "${server_addr}" ]]; then
@@ -853,13 +1158,19 @@ deploy_with_config() {
     fi
   fi
 
+  # ---- 权限修复 ----
   chmod 640 "${CONFIG_PATH}"
   chown hysteria:hysteria /etc/hysteria/config.yaml 2>/dev/null || true
-  restart_service
-  write_client_example "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}" "${auth_type}"
 
+  # ---- 服务启动 ----
+  restart_service
+
+  # ---- 客户端示例 ----
+  write_client_example "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}" "${auth_type}" "${port_hopping}"
+
+  # ---- 分享 URI ----
   local share_uri
-  share_uri="$(generate_uri "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}")"
+  share_uri="$(generate_uri "${server_addr}" "${listen_port}" "${auth_password}" "${sni}" "${TLS_INSECURE}" "${OBFUSCATION_TYPE}" "${OBFUSCATION_PASSWORD}" "${port_hopping}")"
 
   cat >"/root/hy2-v2rayn.txt" <<EOF
 v2rayN 导入信息
@@ -871,6 +1182,7 @@ ${share_uri}
 EOF
   chmod 600 "/root/hy2-v2rayn.txt"
 
+  # ---- 输出总结 ----
   echo
   success "部署完成。"
   echo "--------------------------------------------------"
@@ -889,11 +1201,26 @@ EOF
     echo "混淆方式: ${OBFUSCATION_TYPE}"
     echo "混淆密码: ${OBFUSCATION_PASSWORD}"
   fi
-  if [[ "${sniff_enabled}" == "true" ]]; then
+  if [[ "${prompt_sniff_result}" == "true" ]]; then
     echo "协议嗅探: 已开启"
   fi
-  if [[ "${speed_test_enabled}" == "true" ]]; then
+  if [[ "${prompt_speed_test_result}" == "true" ]]; then
     echo "测速功能: 已开启"
+  fi
+  if [[ -n "${prompt_congestion_result}" ]]; then
+    echo "拥塞控制: ${prompt_congestion_result}"
+    if [[ -n "${prompt_bbr_profile_result}" ]]; then
+      echo "BBR 配置: ${prompt_bbr_profile_result}"
+    fi
+  fi
+  if [[ -n "${prompt_bandwidth_up_result}" ]]; then
+    echo "上行带宽: ${prompt_bandwidth_up_result}"
+  fi
+  if [[ -n "${prompt_bandwidth_down_result}" ]]; then
+    echo "下行带宽: ${prompt_bandwidth_down_result}"
+  fi
+  if [[ -n "${port_hopping}" ]]; then
+    echo "端口跳跃: ${port_hopping}"
   fi
   echo "分享 URI: ${share_uri}"
   echo "v2rayN 导入文件: /root/hy2-v2rayn.txt"
@@ -904,6 +1231,7 @@ EOF
   echo "  systemctl status ${SERVICE_NAME}"
   echo "  journalctl --no-pager -e -u ${SERVICE_NAME}"
   echo "  hysteria version"
+  echo "  hysteria speedtest -c ${CLIENT_EXAMPLE_PATH}  # 测速"
 }
 
 show_menu() {
@@ -992,7 +1320,7 @@ main() {
               HY2_YES="true"
               shift 1
               ;;
-            # ---- v2.9.2 新参数 ----
+            # v2.9.2+ 参数
             --obfs)
               HY2_OBFS="${2:-off}"
               shift 2
@@ -1044,6 +1372,19 @@ main() {
             --sni-guard)
               HY2_SNI_GUARD="${2:-dns-san}"
               shift 2
+              ;;
+            # v2.1.0 新增参数
+            --port-hopping)
+              HY2_PORT_HOPPING="${2:-}"
+              shift 2
+              ;;
+            --log-level)
+              HY2_LOG_LEVEL="${2:-}"
+              shift 2
+              ;;
+            --disable-update-check)
+              HY2_DISABLE_UPDATE_CHECK="1"
+              shift 1
               ;;
             *)
               error "未知参数: $1"

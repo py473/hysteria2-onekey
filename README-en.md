@@ -68,7 +68,7 @@ curl -fsSL https://github.com/py473/hysteria2-onekey/raw/main/install.sh -o /tmp
 
 New to this? Check out the detailed tutorial:
 
-📘 [**GUIDE.md — Hysteria 2 Deployment Guide (Chinese)**](GUIDE.md)
+📘 [**GUIDE.md �?Hysteria 2 Deployment Guide (Chinese)**](GUIDE.md)
 
 Covers: VPS preparation, SSH connection, interactive deployment walkthrough, CLI mode, v2rayN setup, daily management, troubleshooting.
 
@@ -145,7 +145,7 @@ Files generated on the server:
 ### 📊 Bandwidth Limiting
 - Per-client upload/download bandwidth rate limiting
 
-### ⚡ Speed Test
+### �?Speed Test
 - Built-in speed test server for client download/upload testing
 
 ### 👥 Multi-User Authentication
