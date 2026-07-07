@@ -1189,7 +1189,7 @@ generate_uri() {
     port_spec="${port},${port_hopping}"
   fi
 
-  # URI 使用动态端口
+  URI 使用动态端口
   echo "hysteria2://${auth_encoded}@${host}:${port_spec}/?${query}#HY2"
 }
 
